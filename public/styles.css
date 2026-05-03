@@ -1,0 +1,728 @@
+/* =========================================================
+   Bible Presenter — стили админ-панели и экрана проектора
+   ========================================================= */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  --bg:          #f8fafc;
+  --surface:     #ffffff;
+  --sidebar:     #1f2937;
+  --sidebar-2:   #111827;
+  --border:      #e2e8f0;
+  --border-dark: #374151;
+  --text:        #0f172a;
+  --text-mute:   #64748b;
+  --text-on-dark:#e5e7eb;
+  --text-mute-d: #9ca3af;
+  --accent:      #3b82f6;
+  --accent-hover:#2563eb;
+  --accent-soft: #dbeafe;
+  --danger:      #ef4444;
+  --shadow-sm:   0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md:   0 8px 24px rgba(15, 23, 42, 0.10);
+  --shadow-lg:   0 20px 50px rgba(15, 23, 42, 0.20);
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+               "Inter", "Helvetica Neue", Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button, input, select { font: inherit; color: inherit; }
+
+/* =========================================================
+   АДМИН-ПАНЕЛЬ: общий layout
+   ========================================================= */
+.admin {
+  display: grid;
+  /* Сайдбар фикс. 380px, предпросмотр забирает остальное.
+     На узких экранах сайдбар может ужиматься до 280px, чтобы
+     предпросмотр оставался видимым рядом, а не уезжал под список. */
+  grid-template-columns: minmax(280px, 380px) 1fr;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* ---- Левая колонка ---- */
+.sidebar {
+  background: var(--sidebar);
+  color: var(--text-on-dark);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--sidebar-2);
+  min-width: 0;
+}
+
+.sidebar-header {
+  padding: 22px 22px 14px;
+  border-bottom: 1px solid var(--border-dark);
+}
+
+.sidebar-header .brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.sidebar-header h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  background: linear-gradient(180deg, #fef3c7 0%, #fbbf24 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.sidebar-header .brand .ver {
+  font-size: 11px;
+  color: var(--text-mute-d);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.sidebar-header p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-mute-d);
+}
+
+/* Переключатель переводов (RST / KJV) */
+.translation-switch {
+  display: flex;
+  gap: 6px;
+  padding: 12px 22px 0;
+}
+.translation-switch button {
+  flex: 1;
+  cursor: pointer;
+  background: var(--sidebar-2);
+  border: 1px solid var(--border-dark);
+  color: var(--text-on-dark);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.translation-switch button:hover {
+  background: #1e293b;
+  border-color: #4b5563;
+}
+.translation-switch button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Табы: Поиск / Книги */
+.tabs {
+  display: flex;
+  gap: 0;
+  padding: 16px 22px 0;
+  border-bottom: 1px solid var(--border-dark);
+}
+.tabs button {
+  background: transparent;
+  border: none;
+  color: var(--text-mute-d);
+  padding: 10px 14px;
+  margin-bottom: -1px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  transition: color .15s, border-color .15s;
+}
+.tabs button:hover { color: var(--text-on-dark); }
+.tabs button.active {
+  color: #fff;
+  border-bottom-color: var(--accent);
+}
+
+/* Содержимое таба */
+.tab-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Поиск */
+.search-wrap {
+  padding: 14px 18px 12px;
+}
+.search-input {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-dark);
+  background: var(--sidebar-2);
+  color: #f9fafb;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.search-input::placeholder { color: #6b7280; }
+.search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+.search-meta {
+  padding: 0 22px;
+  font-size: 11.5px;
+  color: var(--text-mute-d);
+  letter-spacing: 0.3px;
+}
+
+/* Прокручиваемая зона */
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.scroll::-webkit-scrollbar { width: 8px; }
+.scroll::-webkit-scrollbar-thumb {
+  background: var(--border-dark);
+  border-radius: 4px;
+}
+.scroll::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+
+/* Карточка стиха */
+.card {
+  background: var(--sidebar-2);
+  border: 1px solid var(--border-dark);
+  border-left: 3px solid transparent;
+  border-radius: 10px;
+  padding: 11px 13px;
+  cursor: pointer;
+  color: var(--text-on-dark);
+  transition: transform .12s, border-color .15s, background .15s;
+  text-align: left;
+  font: inherit;
+}
+.card:hover {
+  transform: translateY(-1px);
+  border-left-color: var(--accent);
+  background: #1e293b;
+}
+.card.active {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  border-left-color: #93c5fd;
+  color: #fff;
+}
+.card .ref {
+  font-size: 12px;
+  font-weight: 600;
+  color: #93c5fd;
+  margin-bottom: 3px;
+  letter-spacing: 0.3px;
+}
+.card.active .ref { color: var(--accent-soft); }
+.card .text {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: #cbd5e1;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card.active .text { color: #f1f5f9; }
+
+/* Контейнер таба «Книги»: единая прокручиваемая область,
+   чтобы списки книг/глав/стихов не вылезали за пределы сайдбара.
+   Ползунок всегда виден (важно: новозаветные книги внизу нельзя пропустить). */
+#books-view {
+  flex: 1 1 0;
+  min-height: 0;
+  height: 100%;
+  overflow-y: scroll;     /* всегда показывать дорожку, даже если контент влезает */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  display: flex;
+  flex-direction: column;
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: #64748b #1f2937;
+}
+/* WebKit / Chromium — широкий контрастный ползунок. */
+#books-view::-webkit-scrollbar {
+  width: 12px;
+  background: var(--sidebar-2);
+}
+#books-view::-webkit-scrollbar-track {
+  background: var(--sidebar-2);
+  border-left: 1px solid var(--border-dark);
+}
+#books-view::-webkit-scrollbar-thumb {
+  background: #64748b;
+  border-radius: 6px;
+  border: 2px solid var(--sidebar-2);
+  min-height: 40px;
+}
+#books-view::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Внутри #books-view свой собственный scroll не нужен — родитель уже скроллит. */
+#books-view .scroll {
+  overflow: visible;
+  flex: none;
+  padding: 6px 16px 18px;
+}
+
+/* Хлебные крошки прилипают к верху, чтобы при прокрутке стихов
+   всегда было видно «Назад к книге / Все книги». */
+#books-view .breadcrumbs {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--sidebar);
+  margin: 0;
+}
+
+/* Книги: разделы и плитки */
+.section-title {
+  padding: 10px 22px 6px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-mute-d);
+}
+.book-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px 16px 14px;
+}
+.book-tile {
+  cursor: pointer;
+  background: var(--sidebar-2);
+  border: 1px solid var(--border-dark);
+  color: var(--text-on-dark);
+  border-radius: 8px;
+  padding: 10px 6px;
+  font-size: 12.5px;
+  text-align: center;
+  font: inherit;
+  transition: transform .12s, background .15s, border-color .15s;
+  line-height: 1.25;
+}
+.book-tile:hover {
+  background: #1e293b;
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.book-tile.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Хлебные крошки */
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 22px 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--text-mute-d);
+}
+.breadcrumbs button {
+  background: transparent;
+  border: none;
+  color: #93c5fd;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font: inherit;
+}
+.breadcrumbs button:hover { background: rgba(147, 197, 253, 0.12); }
+.breadcrumbs .sep { color: var(--text-mute-d); }
+.breadcrumbs .current { color: #fff; font-weight: 500; }
+
+/* Сетка глав */
+.chapter-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px 16px 14px;
+}
+.chapter-tile {
+  cursor: pointer;
+  background: var(--sidebar-2);
+  border: 1px solid var(--border-dark);
+  color: var(--text-on-dark);
+  border-radius: 8px;
+  padding: 10px 4px;
+  font-size: 13px;
+  text-align: center;
+  font: inherit;
+  transition: transform .12s, background .15s, border-color .15s;
+}
+.chapter-tile:hover {
+  background: #1e293b;
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.chapter-tile.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Состояние "пусто" */
+.empty {
+  text-align: center;
+  color: var(--text-mute);
+  font-size: 13px;
+  padding: 28px 12px;
+}
+
+/* =========================================================
+   ПРАВАЯ ПАНЕЛЬ: предпросмотр
+   ========================================================= */
+.main {
+  display: flex;
+  flex-direction: column;
+  padding: 22px 28px 22px;
+  gap: 14px;
+  overflow: hidden;
+  background: var(--bg);
+  min-height: 0;
+}
+.toolbar { flex: none; }
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.toolbar h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+}
+.toolbar .status {
+  font-size: 12.5px;
+  color: var(--text-mute);
+  margin-top: 2px;
+}
+.toolbar .actions { display: flex; gap: 10px; }
+
+.btn {
+  border: none;
+  cursor: pointer;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: transform .12s, background .15s, color .15s, box-shadow .15s, border-color .15s;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+}
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary {
+  background: var(--surface);
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+.btn-secondary:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+.btn-danger {
+  background: var(--surface);
+  color: var(--danger);
+  border: 1px solid #fecaca;
+}
+.btn-danger:hover {
+  background: #fef2f2;
+  border-color: var(--danger);
+}
+
+/* Предпросмотр: фиксированная высота сверху, не растягивается. */
+.preview-wrap {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32vh;
+  min-height: 200px;
+  max-height: 360px;
+}
+
+.preview {
+  height: 100%;
+  aspect-ratio: 16 / 9;
+  max-width: 100%;
+  background: #000;
+  border-radius: 14px;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4% 6%;
+}
+.preview .stage {
+  width: 100%;
+  text-align: center;
+  color: #fff;
+  transition: opacity .35s ease;
+}
+.preview .stage.hidden { opacity: 0; }
+.preview .stage .text {
+  font-size: clamp(18px, 3vw, 44px);
+  line-height: 1.25;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+.preview .stage .ref {
+  margin-top: 16px;
+  font-size: clamp(12px, 1.4vw, 20px);
+  color: #9ca3af;
+  letter-spacing: 0.5px;
+}
+.preview .placeholder {
+  color: #4b5563;
+  font-size: 14px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.hint {
+  text-align: center;
+  color: var(--text-mute);
+  font-size: 12.5px;
+  margin: 0;
+}
+
+/* =========================================================
+   READER: текст главы со кликабельными номерами стихов
+   ========================================================= */
+.reader {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.reader-head {
+  flex: none;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.reader-head .title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+.reader-head .sub {
+  font-size: 12.5px;
+  color: var(--text-mute);
+  letter-spacing: 0.3px;
+}
+.reader-head .nav {
+  display: flex;
+  gap: 6px;
+}
+.reader-head .nav button {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.reader-head .nav button:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+.reader-head .nav button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.reader-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 22px 28px 32px;
+  font-size: 17px;
+  line-height: 1.75;
+  color: var(--text);
+  text-align: justify;
+  hyphens: auto;
+}
+.reader-body::-webkit-scrollbar { width: 10px; }
+.reader-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 5px;
+}
+.reader-body::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+.reader-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  color: var(--text-mute);
+  font-size: 14px;
+  padding: 24px;
+}
+
+/* Один стих как inline-span: можно подсветить активный без поломки потока. */
+.v {
+  border-radius: 4px;
+  padding: 2px 2px;
+  transition: background .15s, box-shadow .15s;
+}
+.v.active {
+  background: rgba(59, 130, 246, 0.15);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+}
+
+/* Кликабельный номер стиха: суперскрипт, синий. */
+.vnum {
+  display: inline-block;
+  font-size: 0.72em;
+  font-weight: 700;
+  color: var(--accent);
+  vertical-align: super;
+  line-height: 1;
+  cursor: pointer;
+  margin-right: 4px;
+  padding: 0 2px;
+  border-radius: 3px;
+  user-select: none;
+}
+.vnum:hover {
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+.v.active .vnum {
+  color: var(--accent-hover);
+}
+
+/* Маленькая «таблетка» с номером слайда у активного длинного стиха. */
+.page-pill {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  font-size: 0.7em;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 999px;
+  vertical-align: middle;
+  user-select: none;
+  letter-spacing: 0.3px;
+}
+
+/* =========================================================
+   РЕЖИМ ЭКРАНА (проектор)
+   ========================================================= */
+body.screen-mode {
+  background: #000;
+  color: #fff;
+  overflow: hidden;
+  cursor: none;
+}
+body.screen-mode:hover { cursor: default; }
+body.screen-mode:hover .fs-btn { opacity: 0.7; }
+
+.fs-btn {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .2s, background .15s;
+  z-index: 10;
+}
+.fs-btn:hover { background: rgba(255, 255, 255, 0.18); opacity: 1 !important; }
+.screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4vh 5vw;
+  background: #000;
+}
+.screen .stage {
+  max-width: 92vw;
+  text-align: center;
+  transition: opacity .5s ease;
+}
+.screen .stage.hidden { opacity: 0; }
+.screen .text {
+  font-size: clamp(40px, 6.2vw, 140px);
+  line-height: 1.18;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: #fff;
+  word-wrap: break-word;
+}
+.screen .ref {
+  margin-top: 4vh;
+  font-size: clamp(18px, 2vw, 44px);
+  color: #888;
+  letter-spacing: 1px;
+}
+
+/* =========================================================
+   Адаптация под узкие экраны: уменьшаем отступы и шапку,
+   но НЕ переключаемся в столбик — две колонки всегда рядом,
+   иначе чёрный предпросмотр уезжает вниз и теряется.
+   ========================================================= */
+@media (max-width: 900px) {
+  .main { padding: 16px; gap: 12px; }
+  .toolbar { flex-wrap: wrap; gap: 10px; }
+  .toolbar h2 { font-size: 17px; }
+  .toolbar .actions { gap: 6px; }
+  .btn { padding: 8px 12px; font-size: 13px; }
+  .book-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chapter-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}

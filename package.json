@@ -1,0 +1,19 @@
+{
+  "name": "bible-presenter",
+  "version": "1.0.0",
+  "description": "Лёгкое веб-приложение для церкви: вывод стихов из Библии на проектор. Полная Библия (RST + KJV), 66 книг, поиск, презентация на второй экран.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build:data": "node scripts/build-data.js",
+    "start": "node server/server.js",
+    "dev": "node --watch server/server.js"
+  },
+  "dependencies": {
+    "@fastify/static": "^7.0.4",
+    "fastify": "^4.28.1"
+  }
+}

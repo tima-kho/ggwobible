@@ -1,0 +1,942 @@
+{
+  "translations": [
+    {
+      "code": "rst",
+      "name": "Русский Синодальный",
+      "shortName": "РСТ",
+      "lang": "ru"
+    },
+    {
+      "code": "kjv",
+      "name": "King James Version",
+      "shortName": "KJV",
+      "lang": "en"
+    }
+  ],
+  "books": [
+    {
+      "id": 1,
+      "slug": "01-genesis",
+      "ru": "Бытие",
+      "ruFull": "Книга Бытия",
+      "en": "Genesis",
+      "abbr": "Gen",
+      "testament": "OT",
+      "chaptersCount": 50,
+      "versesCount": {
+        "rst": 1533,
+        "kjv": 1533
+      }
+    },
+    {
+      "id": 2,
+      "slug": "02-exodus",
+      "ru": "Исход",
+      "ruFull": "Книга Исход",
+      "en": "Exodus",
+      "abbr": "Exo",
+      "testament": "OT",
+      "chaptersCount": 40,
+      "versesCount": {
+        "rst": 1213,
+        "kjv": 1213
+      }
+    },
+    {
+      "id": 3,
+      "slug": "03-leviticus",
+      "ru": "Левит",
+      "ruFull": "Книга Левит",
+      "en": "Leviticus",
+      "abbr": "Lev",
+      "testament": "OT",
+      "chaptersCount": 27,
+      "versesCount": {
+        "rst": 859,
+        "kjv": 859
+      }
+    },
+    {
+      "id": 4,
+      "slug": "04-numbers",
+      "ru": "Числа",
+      "ruFull": "Книга Чисел",
+      "en": "Numbers",
+      "abbr": "Num",
+      "testament": "OT",
+      "chaptersCount": 36,
+      "versesCount": {
+        "rst": 1288,
+        "kjv": 1288
+      }
+    },
+    {
+      "id": 5,
+      "slug": "05-deuteronomy",
+      "ru": "Второзаконие",
+      "ruFull": "Книга Второзаконие",
+      "en": "Deuteronomy",
+      "abbr": "Deu",
+      "testament": "OT",
+      "chaptersCount": 34,
+      "versesCount": {
+        "rst": 959,
+        "kjv": 959
+      }
+    },
+    {
+      "id": 6,
+      "slug": "06-joshua",
+      "ru": "Иисус Навин",
+      "ruFull": "Книга Иисуса Навина",
+      "en": "Joshua",
+      "abbr": "Jos",
+      "testament": "OT",
+      "chaptersCount": 24,
+      "versesCount": {
+        "rst": 658,
+        "kjv": 658
+      }
+    },
+    {
+      "id": 7,
+      "slug": "07-judges",
+      "ru": "Судьи",
+      "ruFull": "Книга Судей израилевых",
+      "en": "Judges",
+      "abbr": "Jdg",
+      "testament": "OT",
+      "chaptersCount": 21,
+      "versesCount": {
+        "rst": 618,
+        "kjv": 618
+      }
+    },
+    {
+      "id": 8,
+      "slug": "08-ruth",
+      "ru": "Руфь",
+      "ruFull": "Книга Руфь",
+      "en": "Ruth",
+      "abbr": "Rut",
+      "testament": "OT",
+      "chaptersCount": 4,
+      "versesCount": {
+        "rst": 85,
+        "kjv": 85
+      }
+    },
+    {
+      "id": 9,
+      "slug": "09-1-samuel",
+      "ru": "1-я Царств",
+      "ruFull": "Первая книга Царств",
+      "en": "1 Samuel",
+      "abbr": "1Sa",
+      "testament": "OT",
+      "chaptersCount": 31,
+      "versesCount": {
+        "rst": 810,
+        "kjv": 810
+      }
+    },
+    {
+      "id": 10,
+      "slug": "10-2-samuel",
+      "ru": "2-я Царств",
+      "ruFull": "Вторая книга Царств",
+      "en": "2 Samuel",
+      "abbr": "2Sa",
+      "testament": "OT",
+      "chaptersCount": 24,
+      "versesCount": {
+        "rst": 695,
+        "kjv": 695
+      }
+    },
+    {
+      "id": 11,
+      "slug": "11-1-kings",
+      "ru": "3-я Царств",
+      "ruFull": "Третья книга Царств",
+      "en": "1 Kings",
+      "abbr": "1Ki",
+      "testament": "OT",
+      "chaptersCount": 22,
+      "versesCount": {
+        "rst": 816,
+        "kjv": 816
+      }
+    },
+    {
+      "id": 12,
+      "slug": "12-2-kings",
+      "ru": "4-я Царств",
+      "ruFull": "Четвертая книга Царств",
+      "en": "2 Kings",
+      "abbr": "2Ki",
+      "testament": "OT",
+      "chaptersCount": 25,
+      "versesCount": {
+        "rst": 719,
+        "kjv": 719
+      }
+    },
+    {
+      "id": 13,
+      "slug": "13-1-chronicles",
+      "ru": "1-я Паралипоменон",
+      "ruFull": "Первая книга Паралипоменон",
+      "en": "1 Chronicles",
+      "abbr": "1Ch",
+      "testament": "OT",
+      "chaptersCount": 29,
+      "versesCount": {
+        "rst": 942,
+        "kjv": 942
+      }
+    },
+    {
+      "id": 14,
+      "slug": "14-2-chronicles",
+      "ru": "2-я Паралипоменон",
+      "ruFull": "Вторая книга Паралипоменон",
+      "en": "2 Chronicles",
+      "abbr": "2Ch",
+      "testament": "OT",
+      "chaptersCount": 36,
+      "versesCount": {
+        "rst": 822,
+        "kjv": 822
+      }
+    },
+    {
+      "id": 15,
+      "slug": "15-ezra",
+      "ru": "Ездра",
+      "ruFull": "Книга Ездры",
+      "en": "Ezra",
+      "abbr": "Ezr",
+      "testament": "OT",
+      "chaptersCount": 10,
+      "versesCount": {
+        "rst": 280,
+        "kjv": 280
+      }
+    },
+    {
+      "id": 16,
+      "slug": "16-nehemiah",
+      "ru": "Неемия",
+      "ruFull": "Книга Неемии",
+      "en": "Nehemiah",
+      "abbr": "Neh",
+      "testament": "OT",
+      "chaptersCount": 13,
+      "versesCount": {
+        "rst": 406,
+        "kjv": 406
+      }
+    },
+    {
+      "id": 17,
+      "slug": "17-esther",
+      "ru": "Есфирь",
+      "ruFull": "Книга Есфирь",
+      "en": "Esther",
+      "abbr": "Est",
+      "testament": "OT",
+      "chaptersCount": 10,
+      "versesCount": {
+        "rst": 167,
+        "kjv": 167
+      }
+    },
+    {
+      "id": 18,
+      "slug": "18-job",
+      "ru": "Иов",
+      "ruFull": "Книга Иова",
+      "en": "Job",
+      "abbr": "Job",
+      "testament": "OT",
+      "chaptersCount": 42,
+      "versesCount": {
+        "rst": 1070,
+        "kjv": 1070
+      }
+    },
+    {
+      "id": 19,
+      "slug": "19-psalms",
+      "ru": "Псалтирь",
+      "ruFull": "Псалтирь",
+      "en": "Psalms",
+      "abbr": "Psa",
+      "testament": "OT",
+      "chaptersCount": 150,
+      "versesCount": {
+        "rst": 2461,
+        "kjv": 2461
+      }
+    },
+    {
+      "id": 20,
+      "slug": "20-proverbs",
+      "ru": "Притчи",
+      "ruFull": "Книга Притчей Соломоновых",
+      "en": "Proverbs",
+      "abbr": "Pro",
+      "testament": "OT",
+      "chaptersCount": 31,
+      "versesCount": {
+        "rst": 915,
+        "kjv": 915
+      }
+    },
+    {
+      "id": 21,
+      "slug": "21-ecclesiastes",
+      "ru": "Екклесиаст",
+      "ruFull": "Книга Екклесиаста",
+      "en": "Ecclesiastes",
+      "abbr": "Ecc",
+      "testament": "OT",
+      "chaptersCount": 12,
+      "versesCount": {
+        "rst": 222,
+        "kjv": 222
+      }
+    },
+    {
+      "id": 22,
+      "slug": "22-song-of-solomon",
+      "ru": "Песнь Песней",
+      "ruFull": "Песнь Песней Соломона",
+      "en": "Song of Solomon",
+      "abbr": "Sng",
+      "testament": "OT",
+      "chaptersCount": 8,
+      "versesCount": {
+        "rst": 117,
+        "kjv": 117
+      }
+    },
+    {
+      "id": 23,
+      "slug": "23-isaiah",
+      "ru": "Исаия",
+      "ruFull": "Книга пророка Исаии",
+      "en": "Isaiah",
+      "abbr": "Isa",
+      "testament": "OT",
+      "chaptersCount": 66,
+      "versesCount": {
+        "rst": 1292,
+        "kjv": 1292
+      }
+    },
+    {
+      "id": 24,
+      "slug": "24-jeremiah",
+      "ru": "Иеремия",
+      "ruFull": "Книга пророка Иеремии",
+      "en": "Jeremiah",
+      "abbr": "Jer",
+      "testament": "OT",
+      "chaptersCount": 52,
+      "versesCount": {
+        "rst": 1364,
+        "kjv": 1364
+      }
+    },
+    {
+      "id": 25,
+      "slug": "25-lamentations",
+      "ru": "Плач Иеремии",
+      "ruFull": "Плач Иеремии",
+      "en": "Lamentations",
+      "abbr": "Lam",
+      "testament": "OT",
+      "chaptersCount": 5,
+      "versesCount": {
+        "rst": 154,
+        "kjv": 154
+      }
+    },
+    {
+      "id": 26,
+      "slug": "26-ezekiel",
+      "ru": "Иезекииль",
+      "ruFull": "Книга пророка Иезекииля",
+      "en": "Ezekiel",
+      "abbr": "Eze",
+      "testament": "OT",
+      "chaptersCount": 48,
+      "versesCount": {
+        "rst": 1273,
+        "kjv": 1273
+      }
+    },
+    {
+      "id": 27,
+      "slug": "27-daniel",
+      "ru": "Даниил",
+      "ruFull": "Книга пророка Даниила",
+      "en": "Daniel",
+      "abbr": "Dan",
+      "testament": "OT",
+      "chaptersCount": 12,
+      "versesCount": {
+        "rst": 357,
+        "kjv": 357
+      }
+    },
+    {
+      "id": 28,
+      "slug": "28-hosea",
+      "ru": "Осия",
+      "ruFull": "Книга пророка Осии",
+      "en": "Hosea",
+      "abbr": "Hos",
+      "testament": "OT",
+      "chaptersCount": 14,
+      "versesCount": {
+        "rst": 197,
+        "kjv": 197
+      }
+    },
+    {
+      "id": 29,
+      "slug": "29-joel",
+      "ru": "Иоиль",
+      "ruFull": "Книга пророка Иоиля",
+      "en": "Joel",
+      "abbr": "Joe",
+      "testament": "OT",
+      "chaptersCount": 3,
+      "versesCount": {
+        "rst": 73,
+        "kjv": 73
+      }
+    },
+    {
+      "id": 30,
+      "slug": "30-amos",
+      "ru": "Амос",
+      "ruFull": "Книга пророка Амоса",
+      "en": "Amos",
+      "abbr": "Amo",
+      "testament": "OT",
+      "chaptersCount": 9,
+      "versesCount": {
+        "rst": 146,
+        "kjv": 146
+      }
+    },
+    {
+      "id": 31,
+      "slug": "31-obadiah",
+      "ru": "Авдий",
+      "ruFull": "Книга пророка Авдия",
+      "en": "Obadiah",
+      "abbr": "Oba",
+      "testament": "OT",
+      "chaptersCount": 1,
+      "versesCount": {
+        "rst": 21,
+        "kjv": 21
+      }
+    },
+    {
+      "id": 32,
+      "slug": "32-jonah",
+      "ru": "Иона",
+      "ruFull": "Книга пророка Ионы",
+      "en": "Jonah",
+      "abbr": "Jon",
+      "testament": "OT",
+      "chaptersCount": 4,
+      "versesCount": {
+        "rst": 48,
+        "kjv": 48
+      }
+    },
+    {
+      "id": 33,
+      "slug": "33-micah",
+      "ru": "Михей",
+      "ruFull": "Книга пророка Михея",
+      "en": "Micah",
+      "abbr": "Mic",
+      "testament": "OT",
+      "chaptersCount": 7,
+      "versesCount": {
+        "rst": 105,
+        "kjv": 105
+      }
+    },
+    {
+      "id": 34,
+      "slug": "34-nahum",
+      "ru": "Наум",
+      "ruFull": "Книга пророка Наума",
+      "en": "Nahum",
+      "abbr": "Nah",
+      "testament": "OT",
+      "chaptersCount": 3,
+      "versesCount": {
+        "rst": 47,
+        "kjv": 47
+      }
+    },
+    {
+      "id": 35,
+      "slug": "35-habakkuk",
+      "ru": "Аввакум",
+      "ruFull": "Книга пророка Аввакума",
+      "en": "Habakkuk",
+      "abbr": "Hab",
+      "testament": "OT",
+      "chaptersCount": 3,
+      "versesCount": {
+        "rst": 56,
+        "kjv": 56
+      }
+    },
+    {
+      "id": 36,
+      "slug": "36-zephaniah",
+      "ru": "Софония",
+      "ruFull": "Книга пророка Софонии",
+      "en": "Zephaniah",
+      "abbr": "Zep",
+      "testament": "OT",
+      "chaptersCount": 3,
+      "versesCount": {
+        "rst": 53,
+        "kjv": 53
+      }
+    },
+    {
+      "id": 37,
+      "slug": "37-haggai",
+      "ru": "Аггей",
+      "ruFull": "Книга пророка Аггея",
+      "en": "Haggai",
+      "abbr": "Hag",
+      "testament": "OT",
+      "chaptersCount": 2,
+      "versesCount": {
+        "rst": 38,
+        "kjv": 38
+      }
+    },
+    {
+      "id": 38,
+      "slug": "38-zechariah",
+      "ru": "Захария",
+      "ruFull": "Книга пророка Захарии",
+      "en": "Zechariah",
+      "abbr": "Zec",
+      "testament": "OT",
+      "chaptersCount": 14,
+      "versesCount": {
+        "rst": 211,
+        "kjv": 211
+      }
+    },
+    {
+      "id": 39,
+      "slug": "39-malachi",
+      "ru": "Малахия",
+      "ruFull": "Книга пророка Малахии",
+      "en": "Malachi",
+      "abbr": "Mal",
+      "testament": "OT",
+      "chaptersCount": 4,
+      "versesCount": {
+        "rst": 55,
+        "kjv": 55
+      }
+    },
+    {
+      "id": 40,
+      "slug": "40-matthew",
+      "ru": "Матфея",
+      "ruFull": "От Матфея святое благовествование",
+      "en": "Matthew",
+      "abbr": "Mat",
+      "testament": "NT",
+      "chaptersCount": 28,
+      "versesCount": {
+        "rst": 1071,
+        "kjv": 1071
+      }
+    },
+    {
+      "id": 41,
+      "slug": "41-mark",
+      "ru": "Марка",
+      "ruFull": "От Марка святое благовествование",
+      "en": "Mark",
+      "abbr": "Mar",
+      "testament": "NT",
+      "chaptersCount": 16,
+      "versesCount": {
+        "rst": 678,
+        "kjv": 678
+      }
+    },
+    {
+      "id": 42,
+      "slug": "42-luke",
+      "ru": "Луки",
+      "ruFull": "От Луки святое благовествование",
+      "en": "Luke",
+      "abbr": "Luk",
+      "testament": "NT",
+      "chaptersCount": 24,
+      "versesCount": {
+        "rst": 1151,
+        "kjv": 1151
+      }
+    },
+    {
+      "id": 43,
+      "slug": "43-john",
+      "ru": "Иоанна",
+      "ruFull": "От Иоанна святое благовествование",
+      "en": "John",
+      "abbr": "Joh",
+      "testament": "NT",
+      "chaptersCount": 21,
+      "versesCount": {
+        "rst": 879,
+        "kjv": 879
+      }
+    },
+    {
+      "id": 44,
+      "slug": "44-acts",
+      "ru": "Деяния",
+      "ruFull": "Деяния святых Апостолов",
+      "en": "Acts",
+      "abbr": "Act",
+      "testament": "NT",
+      "chaptersCount": 28,
+      "versesCount": {
+        "rst": 1007,
+        "kjv": 1007
+      }
+    },
+    {
+      "id": 45,
+      "slug": "45-romans",
+      "ru": "Римлянам",
+      "ruFull": "Послание к Римлянам",
+      "en": "Romans",
+      "abbr": "Rom",
+      "testament": "NT",
+      "chaptersCount": 16,
+      "versesCount": {
+        "rst": 433,
+        "kjv": 433
+      }
+    },
+    {
+      "id": 46,
+      "slug": "46-1-corinthians",
+      "ru": "1-е Коринфянам",
+      "ruFull": "Первое послание к Коринфянам",
+      "en": "1 Corinthians",
+      "abbr": "1Co",
+      "testament": "NT",
+      "chaptersCount": 16,
+      "versesCount": {
+        "rst": 437,
+        "kjv": 437
+      }
+    },
+    {
+      "id": 47,
+      "slug": "47-2-corinthians",
+      "ru": "2-е Коринфянам",
+      "ruFull": "Второе послание к Коринфянам",
+      "en": "2 Corinthians",
+      "abbr": "2Co",
+      "testament": "NT",
+      "chaptersCount": 13,
+      "versesCount": {
+        "rst": 257,
+        "kjv": 257
+      }
+    },
+    {
+      "id": 48,
+      "slug": "48-galatians",
+      "ru": "Галатам",
+      "ruFull": "Послание к Галатам",
+      "en": "Galatians",
+      "abbr": "Gal",
+      "testament": "NT",
+      "chaptersCount": 6,
+      "versesCount": {
+        "rst": 149,
+        "kjv": 149
+      }
+    },
+    {
+      "id": 49,
+      "slug": "49-ephesians",
+      "ru": "Ефесянам",
+      "ruFull": "Послание к Ефесянам",
+      "en": "Ephesians",
+      "abbr": "Eph",
+      "testament": "NT",
+      "chaptersCount": 6,
+      "versesCount": {
+        "rst": 155,
+        "kjv": 155
+      }
+    },
+    {
+      "id": 50,
+      "slug": "50-philippians",
+      "ru": "Филиппийцам",
+      "ruFull": "Послание к Филиппийцам",
+      "en": "Philippians",
+      "abbr": "Phi",
+      "testament": "NT",
+      "chaptersCount": 4,
+      "versesCount": {
+        "rst": 104,
+        "kjv": 104
+      }
+    },
+    {
+      "id": 51,
+      "slug": "51-colossians",
+      "ru": "Колоссянам",
+      "ruFull": "Послание к Колоссянам",
+      "en": "Colossians",
+      "abbr": "Col",
+      "testament": "NT",
+      "chaptersCount": 4,
+      "versesCount": {
+        "rst": 95,
+        "kjv": 95
+      }
+    },
+    {
+      "id": 52,
+      "slug": "52-1-thessalonians",
+      "ru": "1-е Фессалоникийцам",
+      "ruFull": "Первое послание к Фессалоникийцам",
+      "en": "1 Thessalonians",
+      "abbr": "1Th",
+      "testament": "NT",
+      "chaptersCount": 5,
+      "versesCount": {
+        "rst": 89,
+        "kjv": 89
+      }
+    },
+    {
+      "id": 53,
+      "slug": "53-2-thessalonians",
+      "ru": "2-е Фессалоникийцам",
+      "ruFull": "Второе послание к Фессалоникийцам",
+      "en": "2 Thessalonians",
+      "abbr": "2Th",
+      "testament": "NT",
+      "chaptersCount": 3,
+      "versesCount": {
+        "rst": 47,
+        "kjv": 47
+      }
+    },
+    {
+      "id": 54,
+      "slug": "54-1-timothy",
+      "ru": "1-е Тимофею",
+      "ruFull": "Первое послание к Тимофею",
+      "en": "1 Timothy",
+      "abbr": "1Ti",
+      "testament": "NT",
+      "chaptersCount": 6,
+      "versesCount": {
+        "rst": 113,
+        "kjv": 113
+      }
+    },
+    {
+      "id": 55,
+      "slug": "55-2-timothy",
+      "ru": "2-е Тимофею",
+      "ruFull": "Второе послание к Тимофею",
+      "en": "2 Timothy",
+      "abbr": "2Ti",
+      "testament": "NT",
+      "chaptersCount": 4,
+      "versesCount": {
+        "rst": 83,
+        "kjv": 83
+      }
+    },
+    {
+      "id": 56,
+      "slug": "56-titus",
+      "ru": "Титу",
+      "ruFull": "Послание к Титу",
+      "en": "Titus",
+      "abbr": "Tit",
+      "testament": "NT",
+      "chaptersCount": 3,
+      "versesCount": {
+        "rst": 46,
+        "kjv": 46
+      }
+    },
+    {
+      "id": 57,
+      "slug": "57-philemon",
+      "ru": "Филимону",
+      "ruFull": "Послание к Филимону",
+      "en": "Philemon",
+      "abbr": "Phm",
+      "testament": "NT",
+      "chaptersCount": 1,
+      "versesCount": {
+        "rst": 25,
+        "kjv": 25
+      }
+    },
+    {
+      "id": 58,
+      "slug": "58-hebrews",
+      "ru": "Евреям",
+      "ruFull": "Послание к Евреям",
+      "en": "Hebrews",
+      "abbr": "Heb",
+      "testament": "NT",
+      "chaptersCount": 13,
+      "versesCount": {
+        "rst": 303,
+        "kjv": 303
+      }
+    },
+    {
+      "id": 59,
+      "slug": "59-james",
+      "ru": "Иакова",
+      "ruFull": "Послание Иакова",
+      "en": "James",
+      "abbr": "Jam",
+      "testament": "NT",
+      "chaptersCount": 5,
+      "versesCount": {
+        "rst": 108,
+        "kjv": 108
+      }
+    },
+    {
+      "id": 60,
+      "slug": "60-1-peter",
+      "ru": "1-е Петра",
+      "ruFull": "Первое послание Петра",
+      "en": "1 Peter",
+      "abbr": "1Pe",
+      "testament": "NT",
+      "chaptersCount": 5,
+      "versesCount": {
+        "rst": 105,
+        "kjv": 105
+      }
+    },
+    {
+      "id": 61,
+      "slug": "61-2-peter",
+      "ru": "2-е Петра",
+      "ruFull": "Второе послание Петра",
+      "en": "2 Peter",
+      "abbr": "2Pe",
+      "testament": "NT",
+      "chaptersCount": 3,
+      "versesCount": {
+        "rst": 61,
+        "kjv": 61
+      }
+    },
+    {
+      "id": 62,
+      "slug": "62-1-john",
+      "ru": "1-е Иоанна",
+      "ruFull": "Первое послание Иоанна",
+      "en": "1 John",
+      "abbr": "1Jo",
+      "testament": "NT",
+      "chaptersCount": 5,
+      "versesCount": {
+        "rst": 105,
+        "kjv": 105
+      }
+    },
+    {
+      "id": 63,
+      "slug": "63-2-john",
+      "ru": "2-е Иоанна",
+      "ruFull": "Второе послание Иоанна",
+      "en": "2 John",
+      "abbr": "2Jo",
+      "testament": "NT",
+      "chaptersCount": 1,
+      "versesCount": {
+        "rst": 13,
+        "kjv": 13
+      }
+    },
+    {
+      "id": 64,
+      "slug": "64-3-john",
+      "ru": "3-е Иоанна",
+      "ruFull": "Третье послание Иоанна",
+      "en": "3 John",
+      "abbr": "3Jo",
+      "testament": "NT",
+      "chaptersCount": 1,
+      "versesCount": {
+        "rst": 14,
+        "kjv": 15
+      }
+    },
+    {
+      "id": 65,
+      "slug": "65-jude",
+      "ru": "Иуды",
+      "ruFull": "Послание Иуды",
+      "en": "Jude",
+      "abbr": "Jud",
+      "testament": "NT",
+      "chaptersCount": 1,
+      "versesCount": {
+        "rst": 25,
+        "kjv": 25
+      }
+    },
+    {
+      "id": 66,
+      "slug": "66-revelation",
+      "ru": "Откровение",
+      "ruFull": "Откровение Иоанна Богослова",
+      "en": "Revelation",
+      "abbr": "Rev",
+      "testament": "NT",
+      "chaptersCount": 22,
+      "versesCount": {
+        "rst": 404,
+        "kjv": 404
+      }
+    }
+  ]
+}
