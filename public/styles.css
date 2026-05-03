@@ -470,7 +470,10 @@ button, input, select { font: inherit; color: inherit; }
   max-height: 360px;
 }
 
+/* Те же пропорции, что у окна проектора (.screen), но единицы — от этого прямоугольника (cqw/cqh), а не от всего окна браузера (vw/vh). */
 .preview {
+  container-type: size;
+  container-name: preview;
   height: 100%;
   aspect-ratio: 16 / 9;
   max-width: 100%;
@@ -482,26 +485,29 @@ button, input, select { font: inherit; color: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4% 6%;
+  padding: 4cqh 5cqw;
 }
 .preview .stage {
-  width: 100%;
+  max-width: 92cqw;
   text-align: center;
   color: #fff;
-  transition: opacity .35s ease;
+  transition: opacity .5s ease;
 }
 .preview .stage.hidden { opacity: 0; }
+/* Без px-пола из clamp: на ТВ средний член (6.2vw), здесь — чистое масштабирование 6.2cqw,
+   иначе маленькое превью упиралось бы в 40px и расходилось с экраном по переносам. */
 .preview .stage .text {
-  font-size: clamp(18px, 3vw, 44px);
-  line-height: 1.25;
+  font-size: min(140px, 6.2cqw);
+  line-height: 1.18;
   font-weight: 500;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.3px;
+  word-wrap: break-word;
 }
 .preview .stage .ref {
-  margin-top: 16px;
-  font-size: clamp(12px, 1.4vw, 20px);
-  color: #9ca3af;
-  letter-spacing: 0.5px;
+  margin-top: 4cqh;
+  font-size: min(44px, 2cqw);
+  color: #888;
+  letter-spacing: 1px;
 }
 .preview .placeholder {
   color: #4b5563;
