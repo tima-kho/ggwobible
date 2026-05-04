@@ -7,6 +7,12 @@
       "lang": "ru"
     },
     {
+      "code": "kyb",
+      "name": "Кыргызча (KYB, 2004)",
+      "shortName": "КРГ",
+      "lang": "ky"
+    },
+    {
       "code": "kjv",
       "name": "King James Version",
       "shortName": "KJV",
@@ -23,9 +29,12 @@
       "abbr": "Gen",
       "testament": "OT",
       "chaptersCount": 50,
+      "ky": "Башт",
+      "kyFull": "Башталыш",
       "versesCount": {
         "rst": 1533,
-        "kjv": 1533
+        "kjv": 1533,
+        "kyb": 1533
       }
     },
     {
@@ -37,9 +46,12 @@
       "abbr": "Exo",
       "testament": "OT",
       "chaptersCount": 40,
+      "ky": "Чыг",
+      "kyFull": "Чыгуу",
       "versesCount": {
         "rst": 1213,
-        "kjv": 1213
+        "kjv": 1213,
+        "kyb": 1213
       }
     },
     {
@@ -51,9 +63,12 @@
       "abbr": "Lev",
       "testament": "OT",
       "chaptersCount": 27,
+      "ky": "Леб",
+      "kyFull": "Лебилер",
       "versesCount": {
         "rst": 859,
-        "kjv": 859
+        "kjv": 859,
+        "kyb": 858
       }
     },
     {
@@ -65,9 +80,12 @@
       "abbr": "Num",
       "testament": "OT",
       "chaptersCount": 36,
+      "ky": "Сан",
+      "kyFull": "Сандар",
       "versesCount": {
         "rst": 1288,
-        "kjv": 1288
+        "kjv": 1288,
+        "kyb": 1288
       }
     },
     {
@@ -79,9 +97,12 @@
       "abbr": "Deu",
       "testament": "OT",
       "chaptersCount": 34,
+      "ky": "Мыйз",
+      "kyFull": "Мыйзамды кайталоо",
       "versesCount": {
         "rst": 959,
-        "kjv": 959
+        "kjv": 959,
+        "kyb": 959
       }
     },
     {
@@ -93,9 +114,12 @@
       "abbr": "Jos",
       "testament": "OT",
       "chaptersCount": 24,
+      "ky": "Жаш",
+      "kyFull": "Жашыя",
       "versesCount": {
         "rst": 658,
-        "kjv": 658
+        "kjv": 658,
+        "kyb": 658
       }
     },
     {
@@ -107,9 +131,12 @@
       "abbr": "Jdg",
       "testament": "OT",
       "chaptersCount": 21,
+      "ky": "Башк",
+      "kyFull": "Башкаруучулар",
       "versesCount": {
         "rst": 618,
-        "kjv": 618
+        "kjv": 618,
+        "kyb": 618
       }
     },
     {
@@ -121,9 +148,12 @@
       "abbr": "Rut",
       "testament": "OT",
       "chaptersCount": 4,
+      "ky": "Рут",
+      "kyFull": "Рут",
       "versesCount": {
         "rst": 85,
-        "kjv": 85
+        "kjv": 85,
+        "kyb": 85
       }
     },
     {
@@ -135,9 +165,12 @@
       "abbr": "1Sa",
       "testament": "OT",
       "chaptersCount": 31,
+      "ky": "1Шем",
+      "kyFull": "1 Шемуел",
       "versesCount": {
         "rst": 810,
-        "kjv": 810
+        "kjv": 810,
+        "kyb": 811
       }
     },
     {
@@ -149,9 +182,12 @@
       "abbr": "2Sa",
       "testament": "OT",
       "chaptersCount": 24,
+      "ky": "2Шем",
+      "kyFull": "2 Шемуел",
       "versesCount": {
         "rst": 695,
-        "kjv": 695
+        "kjv": 695,
+        "kyb": 695
       }
     },
     {
@@ -163,9 +199,12 @@
       "abbr": "1Ki",
       "testament": "OT",
       "chaptersCount": 22,
+      "ky": "1Пад",
+      "kyFull": "1 Падышалар",
       "versesCount": {
         "rst": 816,
-        "kjv": 816
+        "kjv": 816,
+        "kyb": 816
       }
     },
     {
@@ -177,9 +216,12 @@
       "abbr": "2Ki",
       "testament": "OT",
       "chaptersCount": 25,
+      "ky": "2Пад",
+      "kyFull": "2 Падышалар",
       "versesCount": {
         "rst": 719,
-        "kjv": 719
+        "kjv": 719,
+        "kyb": 719
       }
     },
     {
@@ -191,9 +233,12 @@
       "abbr": "1Ch",
       "testament": "OT",
       "chaptersCount": 29,
+      "ky": "1Жылн",
+      "kyFull": "1 Жылнаама",
       "versesCount": {
         "rst": 942,
-        "kjv": 942
+        "kjv": 942,
+        "kyb": 942
       }
     },
     {
@@ -205,9 +250,12 @@
       "abbr": "2Ch",
       "testament": "OT",
       "chaptersCount": 36,
+      "ky": "2Жылн",
+      "kyFull": "2 Жылнаама",
       "versesCount": {
         "rst": 822,
-        "kjv": 822
+        "kjv": 822,
+        "kyb": 822
       }
     },
     {
@@ -219,9 +267,12 @@
       "abbr": "Ezr",
       "testament": "OT",
       "chaptersCount": 10,
+      "ky": "Эзра",
+      "kyFull": "Эзра",
       "versesCount": {
         "rst": 280,
-        "kjv": 280
+        "kjv": 280,
+        "kyb": 280
       }
     },
     {
@@ -233,9 +284,12 @@
       "abbr": "Neh",
       "testament": "OT",
       "chaptersCount": 13,
+      "ky": "Нек",
+      "kyFull": "Некемия",
       "versesCount": {
         "rst": 406,
-        "kjv": 406
+        "kjv": 406,
+        "kyb": 406
       }
     },
     {
@@ -247,9 +301,12 @@
       "abbr": "Est",
       "testament": "OT",
       "chaptersCount": 10,
+      "ky": "Эст",
+      "kyFull": "Эстер",
       "versesCount": {
         "rst": 167,
-        "kjv": 167
+        "kjv": 167,
+        "kyb": 167
       }
     },
     {
@@ -261,9 +318,12 @@
       "abbr": "Job",
       "testament": "OT",
       "chaptersCount": 42,
+      "ky": "Аюб",
+      "kyFull": "Аюб",
       "versesCount": {
         "rst": 1070,
-        "kjv": 1070
+        "kjv": 1070,
+        "kyb": 1070
       }
     },
     {
@@ -275,9 +335,12 @@
       "abbr": "Psa",
       "testament": "OT",
       "chaptersCount": 150,
+      "ky": "Заб",
+      "kyFull": "Забур",
       "versesCount": {
         "rst": 2461,
-        "kjv": 2461
+        "kjv": 2461,
+        "kyb": 2526
       }
     },
     {
@@ -289,9 +352,12 @@
       "abbr": "Pro",
       "testament": "OT",
       "chaptersCount": 31,
+      "ky": "Накыл",
+      "kyFull": "Накыл",
       "versesCount": {
         "rst": 915,
-        "kjv": 915
+        "kjv": 915,
+        "kyb": 915
       }
     },
     {
@@ -303,9 +369,12 @@
       "abbr": "Ecc",
       "testament": "OT",
       "chaptersCount": 12,
+      "ky": "Нас",
+      "kyFull": "Насаатчы",
       "versesCount": {
         "rst": 222,
-        "kjv": 222
+        "kjv": 222,
+        "kyb": 222
       }
     },
     {
@@ -317,9 +386,12 @@
       "abbr": "Sng",
       "testament": "OT",
       "chaptersCount": 8,
+      "ky": "Ыр",
+      "kyFull": "Ырдын ыры",
       "versesCount": {
         "rst": 117,
-        "kjv": 117
+        "kjv": 117,
+        "kyb": 116
       }
     },
     {
@@ -331,9 +403,12 @@
       "abbr": "Isa",
       "testament": "OT",
       "chaptersCount": 66,
+      "ky": "Ыш",
+      "kyFull": "Ышайа",
       "versesCount": {
         "rst": 1292,
-        "kjv": 1292
+        "kjv": 1292,
+        "kyb": 1291
       }
     },
     {
@@ -345,9 +420,12 @@
       "abbr": "Jer",
       "testament": "OT",
       "chaptersCount": 52,
+      "ky": "Жер",
+      "kyFull": "Жеремия",
       "versesCount": {
         "rst": 1364,
-        "kjv": 1364
+        "kjv": 1364,
+        "kyb": 1364
       }
     },
     {
@@ -359,9 +437,12 @@
       "abbr": "Lam",
       "testament": "OT",
       "chaptersCount": 5,
+      "ky": "Жер.ый",
+      "kyFull": "Жеремиянын ыйы",
       "versesCount": {
         "rst": 154,
-        "kjv": 154
+        "kjv": 154,
+        "kyb": 154
       }
     },
     {
@@ -373,9 +454,12 @@
       "abbr": "Eze",
       "testament": "OT",
       "chaptersCount": 48,
+      "ky": "Жез",
+      "kyFull": "Жезекиел",
       "versesCount": {
         "rst": 1273,
-        "kjv": 1273
+        "kjv": 1273,
+        "kyb": 1273
       }
     },
     {
@@ -387,9 +471,12 @@
       "abbr": "Dan",
       "testament": "OT",
       "chaptersCount": 12,
+      "ky": "Дан",
+      "kyFull": "Даниел",
       "versesCount": {
         "rst": 357,
-        "kjv": 357
+        "kjv": 357,
+        "kyb": 357
       }
     },
     {
@@ -401,9 +488,12 @@
       "abbr": "Hos",
       "testament": "OT",
       "chaptersCount": 14,
+      "ky": "Ош",
+      "kyFull": "Ошуя",
       "versesCount": {
         "rst": 197,
-        "kjv": 197
+        "kjv": 197,
+        "kyb": 197
       }
     },
     {
@@ -415,9 +505,12 @@
       "abbr": "Joe",
       "testament": "OT",
       "chaptersCount": 3,
+      "ky": "Жоел",
+      "kyFull": "Жоел",
       "versesCount": {
         "rst": 73,
-        "kjv": 73
+        "kjv": 73,
+        "kyb": 73
       }
     },
     {
@@ -429,9 +522,12 @@
       "abbr": "Amo",
       "testament": "OT",
       "chaptersCount": 9,
+      "ky": "Ам",
+      "kyFull": "Амос",
       "versesCount": {
         "rst": 146,
-        "kjv": 146
+        "kjv": 146,
+        "kyb": 146
       }
     },
     {
@@ -443,9 +539,12 @@
       "abbr": "Oba",
       "testament": "OT",
       "chaptersCount": 1,
+      "ky": "Об",
+      "kyFull": "Обадия",
       "versesCount": {
         "rst": 21,
-        "kjv": 21
+        "kjv": 21,
+        "kyb": 21
       }
     },
     {
@@ -457,9 +556,12 @@
       "abbr": "Jon",
       "testament": "OT",
       "chaptersCount": 4,
+      "ky": "Жун",
+      "kyFull": "Жунус",
       "versesCount": {
         "rst": 48,
-        "kjv": 48
+        "kjv": 48,
+        "kyb": 48
       }
     },
     {
@@ -471,9 +573,12 @@
       "abbr": "Mic",
       "testament": "OT",
       "chaptersCount": 7,
+      "ky": "Мих",
+      "kyFull": "Михей",
       "versesCount": {
         "rst": 105,
-        "kjv": 105
+        "kjv": 105,
+        "kyb": 105
       }
     },
     {
@@ -485,9 +590,12 @@
       "abbr": "Nah",
       "testament": "OT",
       "chaptersCount": 3,
+      "ky": "Нак",
+      "kyFull": "Накум",
       "versesCount": {
         "rst": 47,
-        "kjv": 47
+        "kjv": 47,
+        "kyb": 47
       }
     },
     {
@@ -499,9 +607,12 @@
       "abbr": "Hab",
       "testament": "OT",
       "chaptersCount": 3,
+      "ky": "Хаб",
+      "kyFull": "Хабакук",
       "versesCount": {
         "rst": 56,
-        "kjv": 56
+        "kjv": 56,
+        "kyb": 56
       }
     },
     {
@@ -513,9 +624,12 @@
       "abbr": "Zep",
       "testament": "OT",
       "chaptersCount": 3,
+      "ky": "Сеп",
+      "kyFull": "Сепания",
       "versesCount": {
         "rst": 53,
-        "kjv": 53
+        "kjv": 53,
+        "kyb": 53
       }
     },
     {
@@ -527,9 +641,12 @@
       "abbr": "Hag",
       "testament": "OT",
       "chaptersCount": 2,
+      "ky": "Акай",
+      "kyFull": "Акай",
       "versesCount": {
         "rst": 38,
-        "kjv": 38
+        "kjv": 38,
+        "kyb": 38
       }
     },
     {
@@ -541,9 +658,12 @@
       "abbr": "Zec",
       "testament": "OT",
       "chaptersCount": 14,
+      "ky": "Зах",
+      "kyFull": "Захария",
       "versesCount": {
         "rst": 211,
-        "kjv": 211
+        "kjv": 211,
+        "kyb": 211
       }
     },
     {
@@ -555,9 +675,12 @@
       "abbr": "Mal",
       "testament": "OT",
       "chaptersCount": 4,
+      "ky": "Мал",
+      "kyFull": "Малахия",
       "versesCount": {
         "rst": 55,
-        "kjv": 55
+        "kjv": 55,
+        "kyb": 55
       }
     },
     {
@@ -569,9 +692,12 @@
       "abbr": "Mat",
       "testament": "NT",
       "chaptersCount": 28,
+      "ky": "Матф",
+      "kyFull": "Матай",
       "versesCount": {
         "rst": 1071,
-        "kjv": 1071
+        "kjv": 1071,
+        "kyb": 1071
       }
     },
     {
@@ -583,9 +709,12 @@
       "abbr": "Mar",
       "testament": "NT",
       "chaptersCount": 16,
+      "ky": "Мар",
+      "kyFull": "Марк",
       "versesCount": {
         "rst": 678,
-        "kjv": 678
+        "kjv": 678,
+        "kyb": 678
       }
     },
     {
@@ -597,9 +726,12 @@
       "abbr": "Luk",
       "testament": "NT",
       "chaptersCount": 24,
+      "ky": "Лук",
+      "kyFull": "Лука",
       "versesCount": {
         "rst": 1151,
-        "kjv": 1151
+        "kjv": 1151,
+        "kyb": 1151
       }
     },
     {
@@ -611,9 +743,12 @@
       "abbr": "Joh",
       "testament": "NT",
       "chaptersCount": 21,
+      "ky": "Жкн",
+      "kyFull": "Жакан",
       "versesCount": {
         "rst": 879,
-        "kjv": 879
+        "kjv": 879,
+        "kyb": 879
       }
     },
     {
@@ -625,9 +760,12 @@
       "abbr": "Act",
       "testament": "NT",
       "chaptersCount": 28,
+      "ky": "Элч",
+      "kyFull": "Элчилердин иштери",
       "versesCount": {
         "rst": 1007,
-        "kjv": 1007
+        "kjv": 1007,
+        "kyb": 1006
       }
     },
     {
@@ -639,9 +777,12 @@
       "abbr": "Rom",
       "testament": "NT",
       "chaptersCount": 16,
+      "ky": "Рим",
+      "kyFull": "Римдиктерге",
       "versesCount": {
         "rst": 433,
-        "kjv": 433
+        "kjv": 433,
+        "kyb": 433
       }
     },
     {
@@ -653,9 +794,12 @@
       "abbr": "1Co",
       "testament": "NT",
       "chaptersCount": 16,
+      "ky": "1Кор",
+      "kyFull": "1 Корунттуктарга",
       "versesCount": {
         "rst": 437,
-        "kjv": 437
+        "kjv": 437,
+        "kyb": 437
       }
     },
     {
@@ -667,9 +811,12 @@
       "abbr": "2Co",
       "testament": "NT",
       "chaptersCount": 13,
+      "ky": "2Кор",
+      "kyFull": "2 Корунттуктарга",
       "versesCount": {
         "rst": 257,
-        "kjv": 257
+        "kjv": 257,
+        "kyb": 255
       }
     },
     {
@@ -681,9 +828,12 @@
       "abbr": "Gal",
       "testament": "NT",
       "chaptersCount": 6,
+      "ky": "Гал",
+      "kyFull": "Галатиялыктарга",
       "versesCount": {
         "rst": 149,
-        "kjv": 149
+        "kjv": 149,
+        "kyb": 149
       }
     },
     {
@@ -695,9 +845,12 @@
       "abbr": "Eph",
       "testament": "NT",
       "chaptersCount": 6,
+      "ky": "Эф",
+      "kyFull": "Эфестиктерге",
       "versesCount": {
         "rst": 155,
-        "kjv": 155
+        "kjv": 155,
+        "kyb": 155
       }
     },
     {
@@ -709,9 +862,12 @@
       "abbr": "Phi",
       "testament": "NT",
       "chaptersCount": 4,
+      "ky": "Фил",
+      "kyFull": "Филипиликтерге",
       "versesCount": {
         "rst": 104,
-        "kjv": 104
+        "kjv": 104,
+        "kyb": 104
       }
     },
     {
@@ -723,9 +879,12 @@
       "abbr": "Col",
       "testament": "NT",
       "chaptersCount": 4,
+      "ky": "Кол",
+      "kyFull": "Колосалыктарга",
       "versesCount": {
         "rst": 95,
-        "kjv": 95
+        "kjv": 95,
+        "kyb": 95
       }
     },
     {
@@ -737,9 +896,12 @@
       "abbr": "1Th",
       "testament": "NT",
       "chaptersCount": 5,
+      "ky": "1Тес",
+      "kyFull": "1 Тесалоникалыктарга",
       "versesCount": {
         "rst": 89,
-        "kjv": 89
+        "kjv": 89,
+        "kyb": 89
       }
     },
     {
@@ -751,9 +913,12 @@
       "abbr": "2Th",
       "testament": "NT",
       "chaptersCount": 3,
+      "ky": "2Тес",
+      "kyFull": "2 Тесалоникалыктарга",
       "versesCount": {
         "rst": 47,
-        "kjv": 47
+        "kjv": 47,
+        "kyb": 47
       }
     },
     {
@@ -765,9 +930,12 @@
       "abbr": "1Ti",
       "testament": "NT",
       "chaptersCount": 6,
+      "ky": "1Тим",
+      "kyFull": "1 Тиметейге",
       "versesCount": {
         "rst": 113,
-        "kjv": 113
+        "kjv": 113,
+        "kyb": 113
       }
     },
     {
@@ -779,9 +947,12 @@
       "abbr": "2Ti",
       "testament": "NT",
       "chaptersCount": 4,
+      "ky": "2Тим",
+      "kyFull": "2 Тиметейге",
       "versesCount": {
         "rst": 83,
-        "kjv": 83
+        "kjv": 83,
+        "kyb": 83
       }
     },
     {
@@ -793,9 +964,12 @@
       "abbr": "Tit",
       "testament": "NT",
       "chaptersCount": 3,
+      "ky": "Тит",
+      "kyFull": "Титке",
       "versesCount": {
         "rst": 46,
-        "kjv": 46
+        "kjv": 46,
+        "kyb": 46
       }
     },
     {
@@ -807,9 +981,12 @@
       "abbr": "Phm",
       "testament": "NT",
       "chaptersCount": 1,
+      "ky": "Флм",
+      "kyFull": "К Филемонго",
       "versesCount": {
         "rst": 25,
-        "kjv": 25
+        "kjv": 25,
+        "kyb": 24
       }
     },
     {
@@ -821,9 +998,12 @@
       "abbr": "Heb",
       "testament": "NT",
       "chaptersCount": 13,
+      "ky": "Эвр",
+      "kyFull": "Эврейлерге",
       "versesCount": {
         "rst": 303,
-        "kjv": 303
+        "kjv": 303,
+        "kyb": 303
       }
     },
     {
@@ -835,9 +1015,12 @@
       "abbr": "Jam",
       "testament": "NT",
       "chaptersCount": 5,
+      "ky": "Жкп",
+      "kyFull": "Жакып",
       "versesCount": {
         "rst": 108,
-        "kjv": 108
+        "kjv": 108,
+        "kyb": 108
       }
     },
     {
@@ -849,9 +1032,12 @@
       "abbr": "1Pe",
       "testament": "NT",
       "chaptersCount": 5,
+      "ky": "1Пет",
+      "kyFull": "1 Петир",
       "versesCount": {
         "rst": 105,
-        "kjv": 105
+        "kjv": 105,
+        "kyb": 105
       }
     },
     {
@@ -863,9 +1049,12 @@
       "abbr": "2Pe",
       "testament": "NT",
       "chaptersCount": 3,
+      "ky": "2Пет",
+      "kyFull": "2 Петир",
       "versesCount": {
         "rst": 61,
-        "kjv": 61
+        "kjv": 61,
+        "kyb": 61
       }
     },
     {
@@ -877,9 +1066,12 @@
       "abbr": "1Jo",
       "testament": "NT",
       "chaptersCount": 5,
+      "ky": "1Жкн",
+      "kyFull": "1 Жакан",
       "versesCount": {
         "rst": 105,
-        "kjv": 105
+        "kjv": 105,
+        "kyb": 105
       }
     },
     {
@@ -891,9 +1083,12 @@
       "abbr": "2Jo",
       "testament": "NT",
       "chaptersCount": 1,
+      "ky": "2Жкн",
+      "kyFull": "2 Жакан",
       "versesCount": {
         "rst": 13,
-        "kjv": 13
+        "kjv": 13,
+        "kyb": 13
       }
     },
     {
@@ -905,9 +1100,12 @@
       "abbr": "3Jo",
       "testament": "NT",
       "chaptersCount": 1,
+      "ky": "3Жкн",
+      "kyFull": "3 Жакан",
       "versesCount": {
         "rst": 14,
-        "kjv": 15
+        "kjv": 15,
+        "kyb": 15
       }
     },
     {
@@ -919,9 +1117,12 @@
       "abbr": "Jud",
       "testament": "NT",
       "chaptersCount": 1,
+      "ky": "Жүй",
+      "kyFull": "Жүйүт",
       "versesCount": {
         "rst": 25,
-        "kjv": 25
+        "kjv": 25,
+        "kyb": 25
       }
     },
     {
@@ -933,9 +1134,12 @@
       "abbr": "Rev",
       "testament": "NT",
       "chaptersCount": 22,
+      "ky": "Аян",
+      "kyFull": "Аян",
       "versesCount": {
         "rst": 404,
-        "kjv": 404
+        "kjv": 404,
+        "kyb": 404
       }
     }
   ]

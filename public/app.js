@@ -53,6 +53,116 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * Убирает встроенные метки вида (23:1) или (22:10–12) из русской Псалтири (РСТ).
+ */
+function stripRstPsalmInlineMarkers(text) {
+  return String(text || '').replace(/\(\d+:\d+(?:[–-]\d+)?\)\s*/g, '');
+}
+
+/** РСТ и KYB: одна и та же синодальная сетка и отображение Псалтири (не как KJV). */
+function usesSynodalPsalmGrid(trans) {
+  return trans === 'rst' || trans === 'kyb';
+}
+
+/**
+ * Масоретская глава + стих (как в JSON / KJV) → «синодальная» глава и стих для подписей РСТ.
+ * Источники данных хранят одну сетку глав (MT); в печатном СП нумерация псалмов иная.
+ */
+function mtPsalmToSynodalChapterVerse(mt, verse) {
+  const v = Number(verse);
+  if (mt <= 8) return { ch: mt, v };
+  if (mt === 9) return { ch: 9, v };
+  if (mt === 10) return { ch: 9, v: 20 + v };
+  if (mt <= 113) return { ch: mt - 1, v };
+  if (mt === 114) return { ch: 113, v };
+  if (mt === 115) return { ch: 113, v: 8 + v };
+  if (mt === 116) {
+    if (v <= 9) return { ch: 114, v };
+    return { ch: 115, v: v - 9 };
+  }
+  if (mt <= 146) return { ch: mt - 1, v };
+  if (mt === 147) {
+    if (v <= 11) return { ch: 146, v };
+    return { ch: 147, v: v - 11 };
+  }
+  return { ch: mt, v };
+}
+
+function formatPsalmReaderTitle(trans, book, mtChapter, rstSynodal) {
+  if (book.id !== 19) {
+    const full = trans === 'kyb' && book.kyFull ? book.kyFull : book.ruFull;
+    return `${full}, глава ${mtChapter}`;
+  }
+  const fullPs = trans === 'kyb' && book.kyFull ? book.kyFull : book.ruFull;
+  if (usesSynodalPsalmGrid(trans) && rstSynodal != null) {
+    return `${fullPs}, псалом ${rstSynodal}`;
+  }
+  if (usesSynodalPsalmGrid(trans)) {
+    const { ch } = mtPsalmToSynodalChapterVerse(mtChapter, 1);
+    return `${fullPs}, псалом ${ch}`;
+  }
+  if (trans === 'kjv') {
+    return `${book.en} ${mtChapter}`;
+  }
+  return `${book.ruFull}, глава ${mtChapter}`;
+}
+
+/** Короткое имя книги и ссылка «книга глава:стих» для превью и проектора. */
+function formatVerseRef(trans, book, mtChapter, verseNum, verseRow) {
+  if (book.id !== 19) {
+    const label = trans === 'kyb' && book.ky ? book.ky : book.ru;
+    return `${label} ${mtChapter}:${verseNum}`;
+  }
+  if (usesSynodalPsalmGrid(trans) && verseRow?._src) {
+    const { ch, v } = mtPsalmToSynodalChapterVerse(verseRow._src.mt, verseRow._src.v);
+    const label = trans === 'kyb' && book.ky ? book.ky : book.ru;
+    return `${label} ${ch}:${v}`;
+  }
+  if (usesSynodalPsalmGrid(trans)) {
+    const { ch, v } = mtPsalmToSynodalChapterVerse(mtChapter, verseNum);
+    const label = trans === 'kyb' && book.ky ? book.ky : book.ru;
+    return `${label} ${ch}:${v}`;
+  }
+  if (trans === 'kjv') {
+    return `${book.en} ${mtChapter}:${verseNum}`;
+  }
+  const label = trans === 'kyb' && book.ky ? book.ky : book.ru;
+  return `${label} ${mtChapter}:${verseNum}`;
+}
+
+/** Текст стиха для отображения и проектора: без дублирующих скобок в Псалтири РСТ/KYB. */
+function verseTextForDisplay(trans, bookId, rawText) {
+  if (usesSynodalPsalmGrid(trans) && bookId === 19) {
+    return stripRstPsalmInlineMarkers(rawText);
+  }
+  return rawText;
+}
+
+/** Номер псалма на сетке слева (1…150) для РСТ по позиции MT + стиха. */
+function mtToRstSynodalTile(mt, verse) {
+  return mtPsalmToSynodalChapterVerse(mt, verse).ch;
+}
+
+/**
+ * Как загрузить один «псалом» в синодальной нумерации из файлов с масоретскими главами.
+ * kind: single — одна MT-глава; merge — несколько подряд; slice — часть одной MT-главы.
+ */
+function synodalToLoadSpec(syn) {
+  const s = Number(syn);
+  if (s < 1 || s > 150) return null;
+  if (s <= 8) return { kind: 'single', mt: s };
+  if (s === 9) return { kind: 'merge', mts: [9, 10] };
+  if (s <= 112) return { kind: 'single', mt: s + 1 };
+  if (s === 113) return { kind: 'merge', mts: [114, 115] };
+  if (s === 114) return { kind: 'slice', mt: 116, vFrom: 1, vTo: 9 };
+  if (s === 115) return { kind: 'slice', mt: 116, vFrom: 10, vTo: 19 };
+  if (s <= 145) return { kind: 'single', mt: s + 1 };
+  if (s === 146) return { kind: 'slice', mt: 147, vFrom: 1, vTo: 11 };
+  if (s === 147) return { kind: 'slice', mt: 147, vFrom: 12, vTo: 20 };
+  return { kind: 'single', mt: s };
+}
+
 function debounce(fn, ms) {
   let t = null;
   return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
@@ -254,6 +364,14 @@ async function renderAdmin() {
     btnNextCh:    $('btn-next-chapter')
   };
 
+  /** Имена книг в списке слева: для KYB — кыргызские подписи из индекса. */
+  function bookShort(b) {
+    return state.translation === 'kyb' && b.ky ? b.ky : b.ru;
+  }
+  function bookFull(b) {
+    return state.translation === 'kyb' && b.kyFull ? b.kyFull : b.ruFull;
+  }
+
   /* ----- загрузка данных ----- */
   let translations = [];
   try {
@@ -275,23 +393,47 @@ async function renderAdmin() {
     `).join('');
     els.trans.querySelectorAll('button').forEach(b => {
       b.addEventListener('click', () => {
+        const prevTrans = state.translation;
+        const prevCh      = state.currentChapter;
+        const prevActive  = state.activeVerseNumber;
+
         state.translation = b.dataset.code;
         localStorage.setItem('ui_translation', state.translation);
         renderTranslations();
         if (state.tab === 'search') runSearch();
         else renderBooksView();
-        // если в reader открыта глава — перезагрузить её в новом переводе
-        if (state.currentChapter) {
-          const prevActive = state.activeVerseNumber;
-          (async () => {
-            await loadChapter(
-              state.currentChapter.book.id,
-              state.currentChapter.chapter,
-              { scroll: false }
-            );
-            if (prevActive) pickVerse(prevActive);
-          })();
-        }
+
+        if (!prevCh) return;
+
+        (async () => {
+          const bId = prevCh.book.id;
+          if (bId === 19) {
+            if (usesSynodalPsalmGrid(state.translation)) {
+              if (usesSynodalPsalmGrid(prevTrans)) {
+                await loadChapter(19, prevCh.rstSynodal ?? 1, { scroll: false });
+              } else {
+                const v = prevActive ?? prevCh.verses[0]?.number ?? 1;
+                const syn = mtToRstSynodalTile(prevCh.chapter, v);
+                await loadChapter(19, syn, { scroll: false });
+              }
+            } else {
+              const mt = usesSynodalPsalmGrid(prevTrans)
+                ? (prevCh.primaryMt ?? prevCh.chapter)
+                : prevCh.chapter;
+              await loadChapter(19, mt, { scroll: false, fromMt: true });
+            }
+          } else {
+            await loadChapter(bId, prevCh.chapter, { scroll: false });
+          }
+
+          if (!prevActive) return;
+          const hit = state.currentChapter.verses.find(x => x.number === prevActive);
+          if (hit) pickVerse(prevActive);
+          else {
+            const last = state.currentChapter.verses.at(-1)?.number;
+            if (last != null) pickVerse(last);
+          }
+        })();
       });
     });
   }
@@ -339,19 +481,32 @@ async function renderAdmin() {
     els.searchMeta.textContent =
       `${mode === 'reference' ? 'Найдено по ссылке' : 'Найдено по тексту'}: ${items.length}`;
 
-    els.results.innerHTML = items.map((it, i) => `
-      <button class="card ${it.ref === state.activeRef ? 'active' : ''}"
+    els.results.innerHTML = items.map((it, i) => {
+      const book = state.booksIndex.find(b => b.id === it.bookId);
+      const usePsalmRef = book && it.bookId === 19
+        && (usesSynodalPsalmGrid(state.translation) || state.translation === 'kjv');
+      const refShown = usePsalmRef
+        ? formatVerseRef(state.translation, book, it.chapter, it.verse)
+        : it.ref;
+      const textShown = usesSynodalPsalmGrid(state.translation) && it.bookId === 19
+        ? stripRstPsalmInlineMarkers(it.text)
+        : it.text;
+      const isActive = refShown === state.activeRef || it.ref === state.activeRef;
+      return `
+      <button class="card ${isActive ? 'active' : ''}"
               data-i="${i}">
-        <div class="ref">${escapeHtml(it.ref)}</div>
-        <div class="text">${escapeHtml(it.text)}</div>
-      </button>
-    `).join('');
+        <div class="ref">${escapeHtml(refShown)}</div>
+        <div class="text">${escapeHtml(textShown)}</div>
+      </button>`;
+    }).join('');
 
     els.results.querySelectorAll('.card').forEach(card => {
       card.addEventListener('click', async () => {
         const it = items[Number(card.dataset.i)];
-        // подгружаем главу, затем выбираем стих с пагинацией
-        await loadChapter(it.bookId, it.chapter, { scroll: false });
+        await loadChapter(it.bookId, it.chapter, {
+          scroll: false,
+          fromMt: it.bookId === 19
+        });
         pickVerse(it.verse);
       });
     });
@@ -390,8 +545,8 @@ async function renderAdmin() {
     const nt = state.booksIndex.filter(b => b.testament === 'NT');
     const tile = b =>
       `<button class="book-tile ${state.currentChapter?.book?.id === b.id ? 'active' : ''}"
-               data-id="${b.id}" title="${escapeHtml(b.ruFull)}">
-         ${escapeHtml(b.ru)}
+               data-id="${b.id}" title="${escapeHtml(bookFull(b))}">
+         ${escapeHtml(bookShort(b))}
        </button>`;
     els.booksView.innerHTML = `
       <div class="section-title">Ветхий Завет · ${ot.length} книг</div>
@@ -410,16 +565,47 @@ async function renderAdmin() {
   function renderChaptersList(bookId) {
     const book = state.booksIndex.find(b => b.id === bookId);
     if (!book) return renderBooksList();
+
+    const rstPsalms =
+      bookId === 19 && usesSynodalPsalmGrid(state.translation);
+
+    if (rstPsalms) {
+      const activeSyn =
+        state.currentChapter?.book?.id === 19
+          ? state.currentChapter.rstSynodal
+          : null;
+      const tiles = Array.from({ length: 150 }, (_, i) => i + 1)
+        .map(n => `
+        <button type="button"
+                class="chapter-tile ${n === activeSyn ? 'active' : ''}"
+                data-syn="${n}">
+          ${n}
+        </button>`).join('');
+      els.booksView.innerHTML = `
+      ${renderBreadcrumbs([{ label: bookShort(book) }])}
+      <div class="section-title">${escapeHtml(bookFull(book))} · 150 псалмов (нумерация как в СП)</div>
+      <div class="chapter-grid">${tiles}</div>
+    `;
+      bindBreadcrumbs();
+      els.booksView.querySelectorAll('.chapter-tile').forEach(t => {
+        t.addEventListener('click', () => {
+          loadChapter(bookId, Number(t.dataset.syn), { scroll: true });
+        });
+      });
+      return;
+    }
+
     const activeCh = state.currentChapter?.book?.id === bookId
       ? state.currentChapter.chapter : null;
     const tiles = Array.from({ length: book.chaptersCount }, (_, i) => i + 1)
       .map(n => `
-        <button class="chapter-tile ${n === activeCh ? 'active' : ''}" data-n="${n}">
+        <button type="button"
+                class="chapter-tile ${n === activeCh ? 'active' : ''}" data-n="${n}">
           ${n}
         </button>`).join('');
     els.booksView.innerHTML = `
-      ${renderBreadcrumbs([{ label: book.ru }])}
-      <div class="section-title">${escapeHtml(book.ruFull)} · ${book.chaptersCount} глав</div>
+      ${renderBreadcrumbs([{ label: bookShort(book) }])}
+      <div class="section-title">${escapeHtml(bookFull(book))} · ${book.chaptersCount} глав</div>
       <div class="chapter-grid">${tiles}</div>
     `;
     bindBreadcrumbs();
@@ -442,12 +628,108 @@ async function renderAdmin() {
   }
 
   /* ----- READER: загрузка и отрисовка главы со стихами-ссылками ----- */
+
+  function mapRstPsalmVersesWithSrc(mt, verses) {
+    return verses.map(v => ({
+      number: v.number,
+      text: v.text,
+      _src: { mt, v: v.number }
+    }));
+  }
+
+  /**
+   * Псалтирь РСТ/KYB: chapter = номер псалма 1…150 по синодали (сетка слева), если fromMt !== true.
+   * fromMt: true — chapter — масоретская глава (поиск, переключение с KJV).
+   */
+  async function loadRstSynodalFromSpec(syn, opts) {
+    const spec = synodalToLoadSpec(syn);
+    if (!spec) {
+      els.readerBody.innerHTML = '<div class="reader-empty">Нет такого псалма</div>';
+      return;
+    }
+    const tr = state.translation;
+    if (spec.kind === 'single') {
+      const data = await api(
+        `/api/books/19/chapters/${spec.mt}?translation=${tr}`
+      );
+      state.currentChapter = {
+        book: data.book,
+        chapter: data.chapter,
+        verses: mapRstPsalmVersesWithSrc(data.chapter, data.verses),
+        rstSynodal: syn,
+        primaryMt: spec.mt
+      };
+    } else if (spec.kind === 'merge') {
+      const parts = await Promise.all(
+        spec.mts.map(mt =>
+          api(`/api/books/19/chapters/${mt}?translation=${tr}`)
+        )
+      );
+      let num = 0;
+      const verses = [];
+      for (let i = 0; i < spec.mts.length; i++) {
+        const mt = spec.mts[i];
+        for (const v of parts[i].verses) {
+          num += 1;
+          verses.push({
+            number: num,
+            text: v.text,
+            _src: { mt, v: v.number }
+          });
+        }
+      }
+      state.currentChapter = {
+        book: parts[0].book,
+        chapter: spec.mts[0],
+        verses,
+        rstSynodal: syn,
+        primaryMt: spec.mts[0]
+      };
+    } else {
+      const data = await api(
+        `/api/books/19/chapters/${spec.mt}?translation=${tr}`
+      );
+      const filtered = data.verses.filter(
+        v => v.number >= spec.vFrom && v.number <= spec.vTo
+      );
+      const verses = filtered.map((v, i) => ({
+        number: i + 1,
+        text: v.text,
+        _src: { mt: spec.mt, v: v.number }
+      }));
+      state.currentChapter = {
+        book: data.book,
+        chapter: data.chapter,
+        verses,
+        rstSynodal: syn,
+        primaryMt: spec.mt
+      };
+    }
+    state.activeVerseNumber   = null;
+    state.activeVersePages     = [];
+    state.activeVersePageIndex = 0;
+    renderReader();
+    if (state.tab === 'books') renderBooksView();
+  }
+
   async function loadChapter(bookId, chapter, opts = {}) {
+    const fromMt = opts.fromMt === true;
     const book = state.booksIndex.find(b => b.id === bookId);
     if (!book) return;
-    els.readerTitle.textContent = book.ruFull;
+    els.readerTitle.textContent = bookFull(book);
     els.readerSub.textContent   = `Глава ${chapter} · загрузка...`;
     els.readerBody.innerHTML    = '<div class="reader-empty">Загрузка...</div>';
+
+    if (bookId === 19 && usesSynodalPsalmGrid(state.translation) && !fromMt) {
+      const syn = Number(chapter);
+      try {
+        await loadRstSynodalFromSpec(syn, opts);
+      } catch (err) {
+        els.readerBody.innerHTML =
+          `<div class="reader-empty">Ошибка: ${escapeHtml(err.message)}</div>`;
+      }
+      return;
+    }
 
     let data;
     try {
@@ -461,32 +743,52 @@ async function renderAdmin() {
       return;
     }
 
-    state.currentChapter = { book: data.book, chapter: data.chapter, verses: data.verses };
-    // активный стих и его страницы сбрасываются здесь; вызывайте pickVerse(),
-    // если хотите тут же выбрать конкретный стих в новой главе.
-    state.activeVerseNumber  = null;
-    state.activeVersePages   = [];
+    const rstSyn =
+      bookId === 19 && usesSynodalPsalmGrid(state.translation)
+        ? mtToRstSynodalTile(data.chapter, data.verses[0]?.number ?? 1)
+        : null;
+    const verses =
+      bookId === 19 && usesSynodalPsalmGrid(state.translation)
+        ? mapRstPsalmVersesWithSrc(data.chapter, data.verses)
+        : data.verses;
+
+    state.currentChapter = {
+      book: data.book,
+      chapter: data.chapter,
+      verses,
+      rstSynodal: rstSyn,
+      primaryMt: data.chapter                 // для перехода РСТ → другие переводы
+    };
+    state.activeVerseNumber   = null;
+    state.activeVersePages    = [];
     state.activeVersePageIndex = 0;
 
     renderReader();
 
-    // Перерисовать сайдбар, чтобы подсветить активную книгу/главу
     if (state.tab === 'books') renderBooksView();
   }
 
   function renderReader() {
     const ch = state.currentChapter;
     if (!ch) return;
-    els.readerTitle.textContent = `${ch.book.ruFull}, глава ${ch.chapter}`;
+    els.readerTitle.textContent = formatPsalmReaderTitle(
+      state.translation,
+      ch.book,
+      ch.chapter,
+      ch.rstSynodal
+    );
     els.readerSub.textContent   =
       `${ch.verses.length} стих${ch.verses.length === 1 ? '' :
         ch.verses.length < 5 ? 'а' : 'ов'}`;
 
-    els.readerBody.innerHTML = ch.verses.map(v => `
+    els.readerBody.innerHTML = ch.verses.map(v => {
+      const shown = verseTextForDisplay(state.translation, ch.book.id, v.text);
+      return `
       <span class="v ${v.number === state.activeVerseNumber ? 'active' : ''}"
             data-n="${v.number}">
-        <a class="vnum" data-n="${v.number}" title="Отправить на экран">${v.number}</a>${escapeHtml(v.text)}
-      </span> `).join('');
+        <a class="vnum" data-n="${v.number}" title="Отправить на экран">${v.number}</a>${escapeHtml(shown)}
+      </span> `;
+    }).join('');
 
     els.readerBody.querySelectorAll('.vnum').forEach(a => {
       a.addEventListener('click', () => pickVerse(Number(a.dataset.n)));
@@ -503,7 +805,8 @@ async function renderAdmin() {
     const v = ch.verses.find(x => x.number === n);
     if (!v) return;
     state.activeVerseNumber   = n;
-    state.activeVersePages    = splitVerseIntoPages(v.text);
+    const displayText = verseTextForDisplay(state.translation, ch.book.id, v.text);
+    state.activeVersePages    = splitVerseIntoPages(displayText);
     state.activeVersePageIndex = 0;
     pushCurrentPage();
   }
@@ -515,11 +818,18 @@ async function renderAdmin() {
     const v = ch.verses.find(x => x.number === state.activeVerseNumber);
     if (!v) return;
 
-    const pages = state.activeVersePages.length ? state.activeVersePages : [v.text];
+    const displayText = verseTextForDisplay(state.translation, ch.book.id, v.text);
+    const pages = state.activeVersePages.length ? state.activeVersePages : [displayText];
     const i     = Math.min(state.activeVersePageIndex, pages.length - 1);
     state.activeVersePageIndex = i;
 
-    const baseRef = `${ch.book.ru} ${ch.chapter}:${v.number}`;
+    const baseRef = formatVerseRef(
+      state.translation,
+      ch.book,
+      ch.chapter,
+      v.number,
+      v
+    );
     const ref = pages.length > 1 ? `${baseRef} (${i + 1}/${pages.length})` : baseRef;
     const text = pages[i];
 
@@ -562,14 +872,44 @@ async function renderAdmin() {
   /* ----- Навигация по главам и стихам ----- */
   function updateChapterNavButtons() {
     const ch = state.currentChapter;
-    els.btnPrevCh.disabled = !ch || (ch.book.id === 1 && ch.chapter === 1);
+    if (!ch) {
+      els.btnPrevCh.disabled = true;
+      els.btnNextCh.disabled = true;
+      return;
+    }
+    if (ch.book.id === 19 && usesSynodalPsalmGrid(state.translation) && ch.rstSynodal != null) {
+      els.btnPrevCh.disabled = ch.rstSynodal <= 1;
+      els.btnNextCh.disabled = ch.rstSynodal >= 150;
+      return;
+    }
+    els.btnPrevCh.disabled = ch.book.id === 1 && ch.chapter === 1;
     const lastBook = state.booksIndex[state.booksIndex.length - 1];
-    els.btnNextCh.disabled = !ch ||
-      (ch.book.id === lastBook.id && ch.chapter === lastBook.chaptersCount);
+    els.btnNextCh.disabled =
+      ch.book.id === lastBook.id && ch.chapter === lastBook.chaptersCount;
   }
 
   function navChapter(delta) {
     const ch = state.currentChapter;
+    if (ch && ch.book.id === 19 && usesSynodalPsalmGrid(state.translation) && ch.rstSynodal != null) {
+      const syn = ch.rstSynodal + delta;
+      if (syn >= 1 && syn <= 150) {
+        loadChapter(19, syn, { scroll: false });
+        return;
+      }
+      if (syn < 1) {
+        const idx = state.booksIndex.findIndex(b => b.id === 19);
+        if (idx <= 0) return;
+        const prev = state.booksIndex[idx - 1];
+        loadChapter(prev.id, prev.chaptersCount, { scroll: false, fromMt: true });
+        return;
+      }
+      const idx = state.booksIndex.findIndex(b => b.id === 19);
+      if (idx >= state.booksIndex.length - 1) return;
+      const next = state.booksIndex[idx + 1];
+      loadChapter(next.id, 1, { scroll: false, fromMt: true });
+      return;
+    }
+
     let bookId, chapter;
     if (!ch) {
       // если ничего не открыто — открыть первую/последнюю главу Библии
@@ -637,16 +977,32 @@ async function renderAdmin() {
       return;
     }
 
-    // 3) граница главы → загружаем соседнюю
+    // 3) граница главы → соседняя глава / псалом
     const book = state.booksIndex.find(b => b.id === ch.book.id);
+    const rstPs =
+      ch.book.id === 19 && usesSynodalPsalmGrid(state.translation) && ch.rstSynodal != null;
+
     if (next < min) {
+      if (rstPs && ch.rstSynodal > 1) {
+        await loadChapter(19, ch.rstSynodal - 1, { scroll: false });
+        const last = state.currentChapter.verses.slice(-1)[0].number;
+        pickVerse(last);
+        goLastPage();
+        return;
+      }
       if (ch.chapter > 1) {
-        await loadChapter(book.id, ch.chapter - 1, { scroll: false });
+        await loadChapter(book.id, ch.chapter - 1, {
+          scroll: false,
+          fromMt: book.id === 19
+        });
       } else {
         const idx = state.booksIndex.findIndex(b => b.id === book.id);
         if (idx <= 0) return;
         const prev = state.booksIndex[idx - 1];
-        await loadChapter(prev.id, prev.chaptersCount, { scroll: false });
+        await loadChapter(prev.id, prev.chaptersCount, {
+          scroll: false,
+          fromMt: prev.id === 19
+        });
       }
       const last = state.currentChapter.verses.slice(-1)[0].number;
       pickVerse(last);
@@ -654,13 +1010,22 @@ async function renderAdmin() {
       return;
     }
     if (next > max) {
+      if (rstPs && ch.rstSynodal < 150) {
+        await loadChapter(19, ch.rstSynodal + 1, { scroll: false });
+        const first = state.currentChapter.verses[0].number;
+        pickVerse(first);
+        return;
+      }
       if (ch.chapter < book.chaptersCount) {
-        await loadChapter(book.id, ch.chapter + 1, { scroll: false });
+        await loadChapter(book.id, ch.chapter + 1, {
+          scroll: false,
+          fromMt: book.id === 19
+        });
       } else {
         const idx = state.booksIndex.findIndex(b => b.id === book.id);
         if (idx >= state.booksIndex.length - 1) return;
         const nxt = state.booksIndex[idx + 1];
-        await loadChapter(nxt.id, 1, { scroll: false });
+        await loadChapter(nxt.id, 1, { scroll: false, fromMt: nxt.id === 19 });
       }
       const first = state.currentChapter.verses[0].number;
       pickVerse(first);

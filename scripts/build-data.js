@@ -6,10 +6,12 @@
  *   2. Парсит исходные форматы (NDJSON для RST, классический resultset для KJV).
  *   3. Раскладывает каждый перевод по 66 файлам:
  *      data/rst/01-genesis.json, data/kjv/01-genesis.json и т.д.
- *   4. Создаёт сводный data/books.json со списком книг и количеством глав.
+ *   4. При наличии KYB.SQLite3 и sqlite3 в PATH — выгружает кыргызский KYB в data/kyb/.
+ *   5. Создаёт сводный data/books.json со списком книг и количеством глав.
  *
  * Использование:
  *   node scripts/build-data.js
+ *   node scripts/build-data.js --kyb-only   — только KYB + обновление books.json (RST/KJV уже есть)
  *
  * Скачанные исходники кэшируются в .cache/, повторный запуск не качает заново.
  */
@@ -17,6 +19,7 @@ import { mkdir, writeFile, readFile, access } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BOOKS, TRANSLATIONS, BY_ID } from '../server/books-meta.js';
+import { exportKybToData, mergeBooksIndexWithKyb } from './kyb-export.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -112,7 +115,10 @@ function parseKJV(raw) {
  * Сохраняет одну книгу в её JSON-файл и возвращает мини-описание
  * для сводного индекса.
  */
-async function writeBook(translationCode, meta, chaptersMap) {
+/**
+ * @param {null | { ru: string, ruFull: string }} displayNames — для KYB: кыргызские названия в файле книги; в индекс всё равно кладём русские ru + поля ky.
+ */
+async function writeBook(translationCode, meta, chaptersMap, displayNames = null) {
   const chapters = [...chaptersMap.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([number, verses]) => ({
@@ -122,11 +128,14 @@ async function writeBook(translationCode, meta, chaptersMap) {
         .sort((a, b) => a.number - b.number)
     }));
 
+  const ru = displayNames?.ru ?? meta.ru;
+  const ruFull = displayNames?.ruFull ?? meta.ruFull;
+
   const out = {
     id: meta.id,
     slug: meta.slug,
-    ru: meta.ru,
-    ruFull: meta.ruFull,
+    ru,
+    ruFull,
     en: meta.en,
     abbr: meta.abbr,
     testament: meta.testament,
@@ -153,7 +162,9 @@ async function writeBook(translationCode, meta, chaptersMap) {
     abbr: meta.abbr,
     testament: meta.testament,
     chaptersCount: out.chaptersCount,
-    versesCount: out.versesCount
+    versesCount: out.versesCount,
+    ky: displayNames ? displayNames.ru : undefined,
+    kyFull: displayNames ? displayNames.ruFull : undefined
   };
 }
 
@@ -185,17 +196,47 @@ async function buildOne(code, parser) {
 }
 
 async function main() {
+  const KYB_ONLY = process.argv.includes('--kyb-only');
+
+  if (KYB_ONLY) {
+    console.log('Bible Presenter: только KYB из KYB.SQLite3');
+    await ensureDir(DATA_DIR);
+    try {
+      const result = await exportKybToData(ROOT, { writeBook });
+      if (!result.ok) {
+        console.error('Файл KYB.SQLite3 не найден в корне проекта.');
+        process.exit(1);
+      }
+      await mergeBooksIndexWithKyb(ROOT, result.summary);
+      console.log('\nГотово: data/kyb/ и data/books.json обновлены.');
+    } catch (err) {
+      console.error(err.message || err);
+      process.exit(1);
+    }
+    return;
+  }
+
   console.log('Bible Presenter: сборка библиотеки');
   await ensureDir(DATA_DIR);
 
   const rstSummary = await buildOne('rst', parseRST);
   const kjvSummary = await buildOne('kjv', parseKJV);
 
-  // Сводный индекс книг для фронта (берём данные из RST,
-  // но кладём оба варианта количества глав, если расходятся).
+  let kybSummary = null;
+  console.log('\n=== KYB (локальный SQLite) ===');
+  try {
+    const result = await exportKybToData(ROOT, { writeBook });
+    if (result.ok) kybSummary = result.summary;
+    else console.log('  Пропуск — положите KYB.SQLite3 в корень проекта.');
+  } catch (err) {
+    console.warn(`  Пропуск KYB: ${err.message}`);
+  }
+
+  // Сводный индекс книг для фронта (RST + KJV + опционально KYB).
   const index = BOOKS.map(meta => {
     const r = rstSummary.find(b => b.id === meta.id);
-    const k = kjvSummary.find(b => b.id === meta.id);
+    const kv = kjvSummary.find(b => b.id === meta.id);
+    const ky = kybSummary?.find(b => b.id === meta.id);
     return {
       id: meta.id,
       slug: meta.slug,
@@ -204,10 +245,13 @@ async function main() {
       en: meta.en,
       abbr: meta.abbr,
       testament: meta.testament,
-      chaptersCount: r?.chaptersCount ?? k?.chaptersCount ?? 0,
+      chaptersCount: r?.chaptersCount ?? kv?.chaptersCount ?? ky?.chaptersCount ?? 0,
+      ky: ky?.ky,
+      kyFull: ky?.kyFull,
       versesCount: {
         rst: r?.versesCount ?? 0,
-        kjv: k?.versesCount ?? 0
+        kjv: kv?.versesCount ?? 0,
+        kyb: ky?.versesCount ?? 0
       }
     };
   });
@@ -222,6 +266,9 @@ async function main() {
   console.log(`  data/books.json`);
   console.log(`  data/rst/  — ${rstSummary.length} файлов`);
   console.log(`  data/kjv/  — ${kjvSummary.length} файлов`);
+  if (kybSummary) {
+    console.log(`  data/kyb/  — ${kybSummary.length} файлов`);
+  }
 }
 
 main().catch(err => {

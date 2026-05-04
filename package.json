@@ -1,7 +1,7 @@
 {
   "name": "bible-presenter",
   "version": "1.0.0",
-  "description": "Лёгкое веб-приложение для церкви: вывод стихов из Библии на проектор. Полная Библия (RST + KJV), 66 книг, поиск, презентация на второй экран.",
+  "description": "Лёгкое веб-приложение для церкви: вывод стихов из Библии на проектор. RST, кыргызский KYB, KJV, 66 книг, поиск, второй экран.",
   "type": "module",
   "private": true,
   "engines": {
@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build:data": "node scripts/build-data.js",
+    "export:kyb": "node scripts/build-data.js --kyb-only",
     "start": "node server/server.js",
     "dev": "node --watch server/server.js"
   },

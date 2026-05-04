@@ -7,7 +7,7 @@
  *   getChapter(translation, id, n) — одна глава.
  *   search(translation, query, limit) — подстрочный поиск по стихам.
  *
- * Поиск — простой substring (case-insensitive). На ~31к стихов ×2 перевода
+ * Поиск — простой substring (case-insensitive). На ~31к стихов × переводы
  * это занимает <100мс, не нужен ни Lunr, ни полнотекстовый индекс.
  */
 import { readFile } from 'node:fs/promises';
@@ -90,6 +90,11 @@ export function getChapter(translation, id, n) {
 
 const REF_PATTERN = /^\s*([1-3]?\s*[\p{L}.-]+)\s*(\d+)(?::(\d+)(?:\s*-\s*(\d+))?)?\s*$/u;
 
+function indexBookLabel(book, translation) {
+  if (translation === 'kyb' && book.ky) return book.ky;
+  return book.ru;
+}
+
 /**
  * Пытается распознать строку вида "Иоанна 3:16", "John 3:16-17", "Псалом 22"
  * как навигационный запрос. Возвращает { book, chapter, verseFrom, verseTo } или null.
@@ -102,7 +107,11 @@ function tryParseReference(query, translation) {
   const book = booksIndex.find(b => {
     const ru = b.ru.toLowerCase();
     const en = b.en.toLowerCase();
-    return ru === norm || en === norm
+    const ky = (b.ky || '').toLowerCase();
+    const matchKy = translation === 'kyb' && ky
+      && (ky === norm || ky.startsWith(norm) || norm.startsWith(ky));
+    return matchKy
+        || ru === norm || en === norm
         || ru.startsWith(norm) || en.startsWith(norm)
         || norm.startsWith(ru) || norm.startsWith(en);
   });
@@ -121,7 +130,7 @@ function tryParseReference(query, translation) {
 /**
  * Поиск по тексту стихов.
  *   query       — строка пользователя
- *   translation — 'rst' | 'kjv'
+ *   translation — код перевода (rst, kyb, kjv, …)
  *   limit       — ограничение количества результатов
  * Возвращает { mode: 'reference'|'text', items: [...] }.
  */
@@ -138,12 +147,13 @@ export function search(translation, query, limit = 60) {
       const to = ref.verseTo ?? ref.verseFrom;
       for (const v of ref.verses) {
         if (v.number >= from && v.number <= to) {
+          const bl = indexBookLabel(ref.book, translation);
           items.push({
             bookId: ref.book.id,
-            bookRu: ref.book.ru,
+            bookRu: bl,
             chapter: ref.chapter,
             verse: v.number,
-            ref: `${ref.book.ru} ${ref.chapter}:${v.number}`,
+            ref: `${bl} ${ref.chapter}:${v.number}`,
             text: v.text
           });
         }
@@ -151,12 +161,13 @@ export function search(translation, query, limit = 60) {
     } else {
       // Если указана только глава — отдаём все стихи главы
       for (const v of ref.verses) {
+        const bl = indexBookLabel(ref.book, translation);
         items.push({
           bookId: ref.book.id,
-          bookRu: ref.book.ru,
+          bookRu: bl,
           chapter: ref.chapter,
           verse: v.number,
-          ref: `${ref.book.ru} ${ref.chapter}:${v.number}`,
+          ref: `${bl} ${ref.chapter}:${v.number}`,
           text: v.text
         });
       }

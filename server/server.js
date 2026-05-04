@@ -9,7 +9,7 @@
  *   /api/books/:id/chapters/:n — одна глава
  *   /api/search?q=&translation= — поиск по ссылке или тексту
  *
- * Параметр перевода передаётся как ?translation=rst|kjv (по умолчанию rst).
+ * Параметр перевода: ?translation=rst|kyb|kjv (по умолчанию rst).
  */
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';

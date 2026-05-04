@@ -88,6 +88,7 @@ export const BOOKS = [
 /** Доступные переводы. */
 export const TRANSLATIONS = [
   { code: 'rst', name: 'Русский Синодальный', shortName: 'РСТ', lang: 'ru' },
+  { code: 'kyb', name: 'Кыргызча (KYB, 2004)', shortName: 'КРГ', lang: 'ky' },
   { code: 'kjv', name: 'King James Version',  shortName: 'KJV', lang: 'en' }
 ];
 
