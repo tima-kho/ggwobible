@@ -1,5 +1,8 @@
 node_modules/
 .DS_Store
 *.log
+*.sqlite3
+*.SQLite3
 .cache/
 .tmp/
+scripts/__pycache__/

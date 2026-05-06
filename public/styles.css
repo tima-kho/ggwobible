@@ -1,153 +1,207 @@
 /* =========================================================
-   Bible Presenter — стили админ-панели и экрана проектора
+   Bible Presenter — Celestial Dark Minimal
    ========================================================= */
 
 *, *::before, *::after { box-sizing: border-box; }
 
 :root {
-  --bg:          #f8fafc;
-  --surface:     #ffffff;
-  --sidebar:     #1f2937;
-  --sidebar-2:   #111827;
-  --border:      #e2e8f0;
-  --border-dark: #374151;
-  --text:        #0f172a;
-  --text-mute:   #64748b;
-  --text-on-dark:#e5e7eb;
-  --text-mute-d: #9ca3af;
-  --accent:      #3b82f6;
-  --accent-hover:#2563eb;
-  --accent-soft: #dbeafe;
+  --bg:          #07080f;
+  --surface:     #0d1020;
+  --sidebar:     #050608;
+  --sidebar-2:   #090b14;
+  --border:      #18243a;
+  --border-dark: #18243a;
+  --text:        #dde4f0;
+  --text-mute:   #4a6285;
+  --text-on-dark:#a8bdd8;
+  --text-mute-d: #253545;
+  --accent:      #4d8ef9;
+  --accent-hover:#7aabff;
+  --accent-soft: rgba(77, 142, 249, 0.12);
   --danger:      #ef4444;
-  --shadow-sm:   0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md:   0 8px 24px rgba(15, 23, 42, 0.10);
-  --shadow-lg:   0 20px 50px rgba(15, 23, 42, 0.20);
+  --gold:        #f59e0b;
+  --glow:        0 0 24px rgba(77, 142, 249, 0.3);
+  --shadow-sm:   0 2px 8px rgba(0,0,0,0.4);
+  --shadow-md:   0 8px 32px rgba(0,0,0,0.55);
+  --shadow-lg:   0 24px 64px rgba(0,0,0,0.7);
 }
 
 html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-               "Inter", "Helvetica Neue", Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter",
+               "Helvetica Neue", Arial, sans-serif;
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-button, input, select { font: inherit; color: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; }
 
 /* =========================================================
-   АДМИН-ПАНЕЛЬ: общий layout
+   LAYOUT
    ========================================================= */
 .admin {
   display: grid;
-  /* Сайдбар фикс. 380px, предпросмотр забирает остальное.
-     На узких экранах сайдбар может ужиматься до 280px, чтобы
-     предпросмотр оставался видимым рядом, а не уезжал под список. */
-  grid-template-columns: minmax(280px, 380px) 1fr;
+  grid-template-columns: minmax(280px, 360px) 1fr;
   height: 100vh;
   width: 100vw;
   overflow: hidden;
 }
 
-/* ---- Левая колонка ---- */
+/* ---- Sidebar ---- */
 .sidebar {
   background: var(--sidebar);
   color: var(--text-on-dark);
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--sidebar-2);
+  border-right: 1px solid var(--border);
   min-width: 0;
+  overflow: hidden;
 }
 
 .sidebar-header {
-  padding: 22px 22px 14px;
-  border-bottom: 1px solid var(--border-dark);
+  padding: 18px 18px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .sidebar-header .brand {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
 }
+
 .sidebar-header h1 {
   margin: 0;
-  font-size: 22px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 700;
   letter-spacing: 0.3px;
-  background: linear-gradient(180deg, #fef3c7 0%, #fbbf24 100%);
+  background: linear-gradient(135deg, #fde68a 0%, #f59e0b 60%, #d97706 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
+
 .sidebar-header .brand .ver {
-  font-size: 11px;
+  font-size: 9.5px;
   color: var(--text-mute-d);
-  letter-spacing: 0.4px;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
+  background: var(--border);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-dark);
 }
+
 .sidebar-header p {
-  margin: 4px 0 0;
-  font-size: 12px;
+  margin: 5px 0 0;
+  font-size: 11px;
   color: var(--text-mute-d);
 }
 
-/* Переключатель переводов (RST / KJV) */
+/* Translation switch */
 .translation-switch {
   display: flex;
-  gap: 6px;
-  padding: 12px 22px 0;
+  gap: 4px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
+
 .translation-switch button {
   flex: 1;
   cursor: pointer;
-  background: var(--sidebar-2);
-  border: 1px solid var(--border-dark);
-  color: var(--text-on-dark);
-  padding: 8px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-mute-d);
+  padding: 7px 6px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
-  transition: background .15s, border-color .15s, color .15s;
-}
-.translation-switch button:hover {
-  background: #1e293b;
-  border-color: #4b5563;
-}
-.translation-switch button.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  transition: all .18s;
 }
 
-/* Табы: Поиск / Книги */
+.translation-switch button:hover {
+  border-color: var(--accent);
+  color: var(--text-on-dark);
+  background: var(--accent-soft);
+}
+
+.translation-switch button.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+
+/* Tabs */
 .tabs {
   display: flex;
-  gap: 0;
-  padding: 16px 22px 0;
-  border-bottom: 1px solid var(--border-dark);
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
+
 .tabs button {
   background: transparent;
   border: none;
   color: var(--text-mute-d);
-  padding: 10px 14px;
+  padding: 10px 12px;
   margin-bottom: -1px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 12.5px;
   font-weight: 500;
   border-bottom: 2px solid transparent;
-  transition: color .15s, border-color .15s;
+  transition: color .18s, border-color .18s;
 }
+
 .tabs button:hover { color: var(--text-on-dark); }
+
 .tabs button.active {
-  color: #fff;
+  color: var(--accent-hover);
   border-bottom-color: var(--accent);
 }
 
-/* Содержимое таба */
+.tab-songs-link {
+  background: transparent;
+  border: none;
+  color: var(--text-mute-d);
+  padding: 10px 12px;
+  margin-bottom: -1px;
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition: color .18s;
+}
+
+.tab-songs-link:hover { color: var(--text-on-dark); }
+
+.back-link {
+  color: var(--text-mute-d);
+  text-decoration: none;
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  transition: all .15s;
+  display: inline-flex;
+  align-items: center;
+}
+
+.back-link:hover {
+  color: var(--text-on-dark);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Tab pane */
 .tab-pane {
   flex: 1;
   display: flex;
@@ -155,322 +209,358 @@ button, input, select { font: inherit; color: inherit; }
   min-height: 0;
 }
 
-/* Поиск */
+/* Search */
 .search-wrap {
-  padding: 14px 18px 12px;
+  padding: 10px 12px 6px;
+  flex-shrink: 0;
 }
+
 .search-input {
   width: 100%;
-  padding: 11px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--border-dark);
+  padding: 9px 13px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
   background: var(--sidebar-2);
-  color: #f9fafb;
-  font-size: 14px;
+  color: var(--text-on-dark);
+  font-size: 13px;
   outline: none;
-  transition: border-color .15s, box-shadow .15s;
+  transition: border-color .18s, box-shadow .18s;
 }
-.search-input::placeholder { color: #6b7280; }
+
+.search-input::placeholder { color: var(--text-mute-d); }
+
 .search-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  box-shadow: 0 0 0 3px rgba(77, 142, 249, 0.15);
 }
+
 .search-meta {
-  padding: 0 22px;
-  font-size: 11.5px;
+  padding: 0 12px 4px;
+  font-size: 11px;
   color: var(--text-mute-d);
   letter-spacing: 0.3px;
+  flex-shrink: 0;
 }
 
-/* Прокручиваемая зона */
+/* Scrollable list area */
 .scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: 12px 16px 18px;
+  padding: 6px 8px 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
 }
-.scroll::-webkit-scrollbar { width: 8px; }
-.scroll::-webkit-scrollbar-thumb {
-  background: var(--border-dark);
-  border-radius: 4px;
-}
-.scroll::-webkit-scrollbar-thumb:hover { background: #4b5563; }
 
-/* Карточка стиха */
+.scroll::-webkit-scrollbar { width: 3px; }
+.scroll::-webkit-scrollbar-track { background: transparent; }
+.scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+.scroll::-webkit-scrollbar-thumb:hover { background: #2e4a6a; }
+
+/* Verse card */
 .card {
-  background: var(--sidebar-2);
-  border: 1px solid var(--border-dark);
-  border-left: 3px solid transparent;
-  border-radius: 10px;
-  padding: 11px 13px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-left: 2px solid transparent;
+  border-radius: 8px;
+  padding: 9px 11px;
   cursor: pointer;
   color: var(--text-on-dark);
-  transition: transform .12s, border-color .15s, background .15s;
+  transition: all .16s;
   text-align: left;
   font: inherit;
+  width: 100%;
 }
+
 .card:hover {
-  transform: translateY(-1px);
+  border-color: rgba(77, 142, 249, 0.4);
   border-left-color: var(--accent);
-  background: #1e293b;
+  background: var(--accent-soft);
 }
+
 .card.active {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
-  border-left-color: #93c5fd;
-  color: #fff;
+  background: rgba(77, 142, 249, 0.1);
+  border-color: rgba(77, 142, 249, 0.5);
+  border-left-color: var(--accent-hover);
 }
+
 .card .ref {
-  font-size: 12px;
+  font-size: 10.5px;
   font-weight: 600;
-  color: #93c5fd;
+  color: var(--accent);
   margin-bottom: 3px;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
 }
-.card.active .ref { color: var(--accent-soft); }
+
+.card.active .ref { color: var(--accent-hover); }
+
 .card .text {
-  font-size: 13.5px;
+  font-size: 12.5px;
   line-height: 1.45;
-  color: #cbd5e1;
+  color: var(--text-mute);
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.card.active .text { color: #f1f5f9; }
 
-/* Контейнер таба «Книги»: единая прокручиваемая область,
-   чтобы списки книг/глав/стихов не вылезали за пределы сайдбара.
-   Ползунок всегда виден (важно: новозаветные книги внизу нельзя пропустить). */
+.card.active .text { color: var(--text-on-dark); }
+
+/* Books view */
 #books-view {
   flex: 1 1 0;
   min-height: 0;
-  height: 100%;
-  overflow-y: scroll;     /* всегда показывать дорожку, даже если контент влезает */
+  overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
   display: flex;
   flex-direction: column;
-  /* Firefox */
   scrollbar-width: thin;
-  scrollbar-color: #64748b #1f2937;
+  scrollbar-color: var(--border) var(--sidebar);
 }
-/* WebKit / Chromium — широкий контрастный ползунок. */
-#books-view::-webkit-scrollbar {
-  width: 12px;
-  background: var(--sidebar-2);
-}
-#books-view::-webkit-scrollbar-track {
-  background: var(--sidebar-2);
-  border-left: 1px solid var(--border-dark);
-}
-#books-view::-webkit-scrollbar-thumb {
-  background: #64748b;
-  border-radius: 6px;
-  border: 2px solid var(--sidebar-2);
-  min-height: 40px;
-}
-#books-view::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-/* Внутри #books-view свой собственный scroll не нужен — родитель уже скроллит. */
+#books-view::-webkit-scrollbar { width: 3px; }
+#books-view::-webkit-scrollbar-track { background: transparent; }
+#books-view::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+#books-view::-webkit-scrollbar-thumb:hover { background: #2e4a6a; }
+
 #books-view .scroll {
   overflow: visible;
   flex: none;
-  padding: 6px 16px 18px;
+  padding: 4px 8px 10px;
 }
 
-/* Хлебные крошки прилипают к верху, чтобы при прокрутке стихов
-   всегда было видно «Назад к книге / Все книги». */
 #books-view .breadcrumbs {
   position: sticky;
   top: 0;
   z-index: 2;
   background: var(--sidebar);
-  margin: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
 }
 
-/* Книги: разделы и плитки */
+/* Section labels */
 .section-title {
-  padding: 10px 22px 6px;
-  font-size: 11px;
-  letter-spacing: 1px;
+  padding: 10px 14px 5px;
+  font-size: 10px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--text-mute-d);
+  font-weight: 600;
 }
+
+/* Book grid */
 .book-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-  padding: 4px 16px 14px;
+  gap: 4px;
+  padding: 2px 10px 10px;
 }
+
 .book-tile {
   cursor: pointer;
   background: var(--sidebar-2);
-  border: 1px solid var(--border-dark);
+  border: 1px solid var(--border);
   color: var(--text-on-dark);
-  border-radius: 8px;
-  padding: 10px 6px;
-  font-size: 12.5px;
+  border-radius: 7px;
+  padding: 9px 4px;
+  font-size: 11px;
   text-align: center;
   font: inherit;
-  transition: transform .12s, background .15s, border-color .15s;
+  transition: all .15s;
   line-height: 1.25;
 }
+
 .book-tile:hover {
-  background: #1e293b;
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
-.book-tile.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--accent-soft);
+  border-color: rgba(77, 142, 249, 0.4);
+  color: var(--accent-hover);
 }
 
-/* Хлебные крошки */
+.book-tile.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-hover);
+  font-weight: 600;
+}
+
+/* Breadcrumbs */
 .breadcrumbs {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 14px 22px 10px;
+  padding: 10px 14px 8px;
   flex-wrap: wrap;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-mute-d);
 }
+
 .breadcrumbs button {
   background: transparent;
   border: none;
-  color: #93c5fd;
+  color: var(--accent);
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 2px 5px;
   border-radius: 4px;
   font: inherit;
+  transition: background .15s;
 }
-.breadcrumbs button:hover { background: rgba(147, 197, 253, 0.12); }
-.breadcrumbs .sep { color: var(--text-mute-d); }
-.breadcrumbs .current { color: #fff; font-weight: 500; }
 
-/* Сетка глав */
+.breadcrumbs button:hover {
+  background: var(--accent-soft);
+}
+
+.breadcrumbs .sep { color: var(--border); }
+.breadcrumbs .current { color: var(--text-on-dark); font-weight: 500; }
+
+/* Chapter grid */
 .chapter-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
-  padding: 4px 16px 14px;
+  gap: 4px;
+  padding: 2px 10px 10px;
 }
+
 .chapter-tile {
   cursor: pointer;
   background: var(--sidebar-2);
-  border: 1px solid var(--border-dark);
+  border: 1px solid var(--border);
   color: var(--text-on-dark);
-  border-radius: 8px;
-  padding: 10px 4px;
-  font-size: 13px;
+  border-radius: 7px;
+  padding: 9px 4px;
+  font-size: 12px;
   text-align: center;
   font: inherit;
-  transition: transform .12s, background .15s, border-color .15s;
-}
-.chapter-tile:hover {
-  background: #1e293b;
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
-.chapter-tile.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  transition: all .15s;
 }
 
-/* Состояние "пусто" */
+.chapter-tile:hover {
+  background: var(--accent-soft);
+  border-color: rgba(77, 142, 249, 0.4);
+  color: var(--accent-hover);
+}
+
+.chapter-tile.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-hover);
+  font-weight: 600;
+}
+
+/* Empty state */
 .empty {
   text-align: center;
-  color: var(--text-mute);
-  font-size: 13px;
-  padding: 28px 12px;
+  color: var(--text-mute-d);
+  font-size: 12px;
+  padding: 24px 12px;
+  line-height: 1.6;
 }
 
 /* =========================================================
-   ПРАВАЯ ПАНЕЛЬ: предпросмотр
+   MAIN PANEL
    ========================================================= */
 .main {
   display: flex;
   flex-direction: column;
-  padding: 22px 28px 22px;
-  gap: 14px;
+  padding: 18px 22px;
+  gap: 12px;
   overflow: hidden;
   background: var(--bg);
   min-height: 0;
 }
-.toolbar { flex: none; }
 
 .toolbar {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
 }
+
 .toolbar h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text);
+  letter-spacing: 0.2px;
 }
-.toolbar .status {
-  font-size: 12.5px;
-  color: var(--text-mute);
-  margin-top: 2px;
-}
-.toolbar .actions { display: flex; gap: 10px; }
 
+.toolbar .status {
+  font-size: 11px;
+  color: var(--text-mute);
+  margin-top: 3px;
+}
+
+.toolbar .actions { display: flex; gap: 6px; }
+
+/* Buttons */
 .btn {
   border: none;
   cursor: pointer;
-  padding: 10px 18px;
+  padding: 8px 16px;
   border-radius: 999px;
-  font-size: 14px;
+  font-size: 12.5px;
   font-weight: 500;
-  transition: transform .12s, background .15s, color .15s, box-shadow .15s, border-color .15s;
+  transition: all .18s;
+  letter-spacing: 0.2px;
 }
-.btn:active { transform: translateY(1px); }
+
+.btn:active { transform: scale(0.96); }
+
 .btn-primary {
   background: var(--accent);
   color: #fff;
-  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
-}
-.btn-primary:hover { background: var(--accent-hover); }
-.btn-secondary {
-  background: var(--surface);
-  color: #334155;
-  border: 1px solid #cbd5e1;
-}
-.btn-secondary:hover {
-  background: #f1f5f9;
-  border-color: #94a3b8;
-}
-.btn-danger {
-  background: var(--surface);
-  color: var(--danger);
-  border: 1px solid #fecaca;
-}
-.btn-danger:hover {
-  background: #fef2f2;
-  border-color: var(--danger);
+  box-shadow: 0 0 16px rgba(77, 142, 249, 0.35);
 }
 
-/* Предпросмотр: фиксированная высота сверху, не растягивается. */
+.btn-primary:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 0 24px rgba(77, 142, 249, 0.5);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-mute);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  border-color: rgba(77, 142, 249, 0.5);
+  color: var(--text-on-dark);
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* Preview */
 .preview-wrap {
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 32vh;
-  min-height: 200px;
-  max-height: 360px;
+  height: 28vh;
+  min-height: 170px;
+  max-height: 320px;
 }
 
-/* Те же пропорции, что у окна проектора (.screen), но единицы — от этого прямоугольника (cqw/cqh), а не от всего окна браузера (vw/vh). */
 .preview {
   container-type: size;
   container-name: preview;
@@ -478,8 +568,8 @@ button, input, select { font: inherit; color: inherit; }
   aspect-ratio: 16 / 9;
   max-width: 100%;
   background: #000;
-  border-radius: 14px;
-  box-shadow: var(--shadow-md);
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px var(--border), var(--shadow-md);
   overflow: hidden;
   position: relative;
   display: flex;
@@ -487,15 +577,16 @@ button, input, select { font: inherit; color: inherit; }
   justify-content: center;
   padding: 4cqh 5cqw;
 }
+
 .preview .stage {
   max-width: 92cqw;
   text-align: center;
   color: #fff;
   transition: opacity .5s ease;
 }
+
 .preview .stage.hidden { opacity: 0; }
-/* Без px-пола из clamp: на ТВ средний член (6.2vw), здесь — чистое масштабирование 6.2cqw,
-   иначе маленькое превью упиралось бы в 40px и расходилось с экраном по переносам. */
+
 .preview .stage .text {
   font-size: min(140px, 6.2cqw);
   line-height: 1.18;
@@ -503,28 +594,329 @@ button, input, select { font: inherit; color: inherit; }
   letter-spacing: 0.3px;
   word-wrap: break-word;
 }
+
 .preview .stage .ref {
   margin-top: 4cqh;
   font-size: min(44px, 2cqw);
-  color: #888;
+  color: #444;
   letter-spacing: 1px;
 }
+
 .preview .placeholder {
-  color: #4b5563;
-  font-size: 14px;
-  letter-spacing: 0.4px;
+  color: #1c2a40;
+  font-size: 10px;
+  letter-spacing: 2px;
   text-transform: uppercase;
 }
 
 .hint {
   text-align: center;
   color: var(--text-mute);
-  font-size: 12.5px;
+  font-size: 12px;
   margin: 0;
 }
 
 /* =========================================================
-   READER: текст главы со кликабельными номерами стихов
+   SONGS: queue and slides
+   ========================================================= */
+.songs-workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(200px, 260px) 1fr;
+  gap: 10px;
+}
+
+.songs-queue-panel,
+.songs-slide-panel {
+  background: var(--surface);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.songs-queue-panel > header,
+.songs-slide-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.songs-queue-panel .title,
+.songs-slide-header .title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.songs-queue-panel .sub,
+.songs-slide-header .sub {
+  color: var(--text-mute);
+  font-size: 10.5px;
+  margin-top: 2px;
+}
+
+.songs-queue-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.songs-queue-list::-webkit-scrollbar { width: 3px; }
+.songs-queue-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+.songs-queue-item {
+  display: grid;
+  grid-template-columns: 1fr 26px;
+  gap: 3px;
+}
+
+.songs-queue-main {
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 7px;
+  text-align: left;
+  cursor: pointer;
+  padding: 7px 10px;
+  transition: all .15s;
+  color: var(--text-on-dark);
+}
+
+.songs-queue-main:hover {
+  border-color: rgba(77, 142, 249, 0.4);
+  background: var(--accent-soft);
+}
+
+.songs-queue-main .title {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.songs-queue-main .meta {
+  font-size: 10px;
+  color: var(--text-mute);
+  margin-top: 1px;
+}
+
+.songs-queue-item.active .songs-queue-main {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.songs-queue-remove {
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 7px;
+  cursor: pointer;
+  color: var(--text-mute-d);
+  font-size: 15px;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.songs-queue-remove:hover {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.07);
+}
+
+.songs-slide-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.songs-slide-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.songs-slide-text {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px;
+  white-space: pre-line;
+  line-height: 1.7;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.songs-slide-text::-webkit-scrollbar { width: 3px; }
+.songs-slide-text::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+/* Songs search cards */
+.songs-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  transition: all .15s;
+  cursor: default;
+}
+
+.songs-card:hover {
+  border-color: rgba(77, 142, 249, 0.35);
+  background: var(--accent-soft);
+}
+
+.songs-card-main {
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--text-on-dark);
+  cursor: pointer;
+  padding: 0;
+  min-width: 0;
+}
+
+.songs-card-main .ref {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-on-dark);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.songs-card-main .text {
+  font-size: 11px;
+  color: var(--text-mute-d);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+}
+
+.songs-card-add {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-mute-d);
+  cursor: pointer;
+  padding: 4px 9px;
+  font-size: 11px;
+  transition: all .15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.songs-card-add:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Songs manual add (collapsible) */
+.songs-manual {
+  padding: 0 10px 6px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.songs-manual-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 2px 9px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  transition: color .15s;
+}
+
+.songs-manual-header:hover .songs-manual-title {
+  color: var(--text-on-dark);
+}
+
+.songs-manual-title {
+  font-size: 10.5px;
+  color: var(--text-mute-d);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  font-weight: 600;
+  transition: color .15s;
+}
+
+.songs-manual-arrow {
+  font-size: 12px;
+  color: var(--text-mute-d);
+  transition: transform .2s;
+  display: inline-block;
+  line-height: 1;
+}
+
+.songs-manual-arrow.open {
+  transform: rotate(90deg);
+}
+
+.songs-manual-body {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 6px;
+}
+
+.songs-manual-body.open {
+  display: flex;
+}
+
+.songs-manual-lyrics {
+  min-height: 90px;
+  max-height: 150px;
+  resize: vertical;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--sidebar-2);
+  color: var(--text-on-dark);
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  outline: none;
+}
+
+.songs-manual-lyrics:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(77, 142, 249, 0.15);
+}
+
+.songs-manual-btn {
+  width: 100%;
+  padding: 8px;
+  font-size: 12px;
+}
+
+.songs-manual-status {
+  min-height: 14px;
+  font-size: 10px;
+  color: var(--text-mute-d);
+}
+
+/* =========================================================
+   READER
    ========================================================= */
 .reader {
   flex: 1;
@@ -532,52 +924,59 @@ button, input, select { font: inherit; color: inherit; }
   display: flex;
   flex-direction: column;
   background: var(--surface);
-  border-radius: 14px;
-  box-shadow: var(--shadow-sm);
+  border-radius: 10px;
   border: 1px solid var(--border);
   overflow: hidden;
 }
 
 .reader-head {
   flex: none;
-  padding: 14px 22px;
+  padding: 11px 18px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
 }
+
 .reader-head .title {
-  font-size: 16px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text);
 }
+
 .reader-head .sub {
-  font-size: 12.5px;
+  font-size: 11px;
   color: var(--text-mute);
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
+  margin-top: 2px;
 }
+
 .reader-head .nav {
   display: flex;
-  gap: 6px;
+  gap: 4px;
 }
+
 .reader-head .nav button {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
+  width: 27px;
+  height: 27px;
+  border-radius: 6px;
   border: 1px solid var(--border);
-  background: #fff;
-  color: var(--text);
-  font-size: 14px;
+  background: transparent;
+  color: var(--text-mute);
+  font-size: 12px;
   cursor: pointer;
-  transition: background .15s, border-color .15s;
+  transition: all .15s;
 }
+
 .reader-head .nav button:hover {
-  background: #f1f5f9;
-  border-color: #94a3b8;
+  border-color: rgba(77, 142, 249, 0.4);
+  color: var(--accent-hover);
+  background: var(--accent-soft);
 }
+
 .reader-head .nav button:disabled {
-  opacity: 0.4;
+  opacity: 0.25;
   cursor: not-allowed;
 }
 
@@ -585,19 +984,20 @@ button, input, select { font: inherit; color: inherit; }
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 22px 28px 32px;
-  font-size: 17px;
-  line-height: 1.75;
+  padding: 18px 22px 26px;
+  font-size: 16px;
+  line-height: 1.8;
   color: var(--text);
   text-align: justify;
   hyphens: auto;
 }
-.reader-body::-webkit-scrollbar { width: 10px; }
+
+.reader-body::-webkit-scrollbar { width: 3px; }
 .reader-body::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 5px;
+  background: var(--border);
+  border-radius: 2px;
 }
-.reader-body::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.reader-body::-webkit-scrollbar-thumb:hover { background: #2e4a6a; }
 
 .reader-empty {
   display: flex;
@@ -606,60 +1006,63 @@ button, input, select { font: inherit; color: inherit; }
   height: 100%;
   text-align: center;
   color: var(--text-mute);
-  font-size: 14px;
+  font-size: 13px;
   padding: 24px;
+  line-height: 1.7;
 }
 
-/* Один стих как inline-span: можно подсветить активный без поломки потока. */
+/* Verse spans */
 .v {
-  border-radius: 4px;
-  padding: 2px 2px;
+  border-radius: 3px;
+  padding: 1px 1px;
   transition: background .15s, box-shadow .15s;
 }
+
 .v.active {
-  background: rgba(59, 130, 246, 0.15);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+  background: rgba(77, 142, 249, 0.1);
+  box-shadow: 0 0 0 2px rgba(77, 142, 249, 0.18);
 }
 
-/* Кликабельный номер стиха: суперскрипт, синий. */
 .vnum {
   display: inline-block;
-  font-size: 0.72em;
+  font-size: 0.68em;
   font-weight: 700;
   color: var(--accent);
   vertical-align: super;
   line-height: 1;
   cursor: pointer;
-  margin-right: 4px;
+  margin-right: 3px;
   padding: 0 2px;
   border-radius: 3px;
   user-select: none;
+  transition: all .12s;
 }
+
 .vnum:hover {
   background: var(--accent-soft);
   color: var(--accent-hover);
 }
+
 .v.active .vnum {
   color: var(--accent-hover);
 }
 
-/* Маленькая «таблетка» с номером слайда у активного длинного стиха. */
 .page-pill {
   display: inline-block;
-  margin-left: 8px;
-  padding: 1px 8px;
-  font-size: 0.7em;
+  margin-left: 6px;
+  padding: 1px 7px;
+  font-size: 0.65em;
   font-weight: 600;
-  color: #fff;
-  background: var(--accent);
+  color: var(--accent-hover);
+  background: var(--accent-soft);
+  border: 1px solid rgba(77, 142, 249, 0.3);
   border-radius: 999px;
   vertical-align: middle;
   user-select: none;
-  letter-spacing: 0.3px;
 }
 
 /* =========================================================
-   РЕЖИМ ЭКРАНА (проектор)
+   PROJECTOR SCREEN
    ========================================================= */
 body.screen-mode {
   background: #000;
@@ -667,27 +1070,30 @@ body.screen-mode {
   overflow: hidden;
   cursor: none;
 }
+
 body.screen-mode:hover { cursor: default; }
-body.screen-mode:hover .fs-btn { opacity: 0.7; }
+body.screen-mode:hover .fs-btn { opacity: 0.5; }
 
 .fs-btn {
   position: fixed;
-  top: 16px;
-  right: 16px;
-  width: 36px;
-  height: 36px;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
   color: #fff;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
   cursor: pointer;
   opacity: 0;
   transition: opacity .2s, background .15s;
   z-index: 10;
 }
-.fs-btn:hover { background: rgba(255, 255, 255, 0.18); opacity: 1 !important; }
+
+.fs-btn:hover { background: rgba(255,255,255,0.12); opacity: 1 !important; }
+
 .screen {
   position: fixed;
   inset: 0;
@@ -697,12 +1103,15 @@ body.screen-mode:hover .fs-btn { opacity: 0.7; }
   padding: 4vh 5vw;
   background: #000;
 }
+
 .screen .stage {
   max-width: 92vw;
   text-align: center;
   transition: opacity .5s ease;
 }
+
 .screen .stage.hidden { opacity: 0; }
+
 .screen .text {
   font-size: clamp(40px, 6.2vw, 140px);
   line-height: 1.18;
@@ -711,24 +1120,24 @@ body.screen-mode:hover .fs-btn { opacity: 0.7; }
   color: #fff;
   word-wrap: break-word;
 }
+
 .screen .ref {
   margin-top: 4vh;
   font-size: clamp(18px, 2vw, 44px);
-  color: #888;
+  color: #444;
   letter-spacing: 1px;
 }
 
 /* =========================================================
-   Адаптация под узкие экраны: уменьшаем отступы и шапку,
-   но НЕ переключаемся в столбик — две колонки всегда рядом,
-   иначе чёрный предпросмотр уезжает вниз и теряется.
+   RESPONSIVE
    ========================================================= */
 @media (max-width: 900px) {
-  .main { padding: 16px; gap: 12px; }
-  .toolbar { flex-wrap: wrap; gap: 10px; }
-  .toolbar h2 { font-size: 17px; }
-  .toolbar .actions { gap: 6px; }
-  .btn { padding: 8px 12px; font-size: 13px; }
+  .main { padding: 12px; gap: 10px; }
+  .toolbar { flex-wrap: wrap; gap: 8px; }
+  .toolbar h2 { font-size: 14px; }
+  .btn { padding: 7px 12px; font-size: 12px; }
   .book-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .chapter-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .songs-workspace { grid-template-columns: 1fr; }
+  .songs-slide-text { font-size: 16px; }
 }

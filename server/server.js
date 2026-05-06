@@ -18,6 +18,9 @@ import { fileURLToPath } from 'node:url';
 import {
   load, getTranslations, getBooksIndex, getBook, getChapter, search
 } from './library.js';
+import {
+  loadSongs, getSongs, getSong, searchSongs, addCustomSong
+} from './songs-library.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -71,6 +74,31 @@ fastify.get('/api/search', async (req, reply) => {
   return search(translation, q, limit);
 });
 
+fastify.get('/api/songs', async req => ({
+  items: getSongs(Math.min(Number(req.query?.limit) || 300, 1000))
+}));
+
+fastify.get('/api/songs/search', async req => {
+  const q = String(req.query?.q || '').trim();
+  const limit = Math.min(Number(req.query?.limit) || 120, 500);
+  return searchSongs(q, limit);
+});
+
+fastify.get('/api/songs/:id', async (req, reply) => {
+  const song = getSong(req.params.id);
+  if (!song) return reply.code(404).send({ error: 'Song not found' });
+  return song;
+});
+
+fastify.post('/api/songs/custom', async (req, reply) => {
+  try {
+    const created = await addCustomSong(req.body || {});
+    return reply.code(201).send(created);
+  } catch (err) {
+    return reply.code(400).send({ error: err.message || 'Invalid song payload' });
+  }
+});
+
 /* ---------------------- Статика и health ---------------------- */
 
 fastify.register(fastifyStatic, {
@@ -86,6 +114,7 @@ fastify.get('/healthz', async () => ({ ok: true }));
 (async () => {
   try {
     await load();
+    await loadSongs();
     await fastify.listen({ host: HOST, port: PORT });
     fastify.log.info(`Bible Presenter готов: http://${HOST}:${PORT}`);
   } catch (err) {

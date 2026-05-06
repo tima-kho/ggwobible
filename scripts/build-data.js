@@ -20,6 +20,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BOOKS, TRANSLATIONS, BY_ID } from '../server/books-meta.js';
 import { exportKybToData, mergeBooksIndexWithKyb } from './kyb-export.js';
+import { buildSongsData } from './build-songs.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -262,8 +263,11 @@ async function main() {
     'utf8'
   );
 
+  const songs = await buildSongsData(ROOT);
+
   console.log('\nГотово. Структура:');
   console.log(`  data/books.json`);
+  console.log(`  data/songs.json — ${songs.total} песен`);
   console.log(`  data/rst/  — ${rstSummary.length} файлов`);
   console.log(`  data/kjv/  — ${kjvSummary.length} файлов`);
   if (kybSummary) {

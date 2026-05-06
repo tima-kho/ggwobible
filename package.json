@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build:data": "node scripts/build-data.js",
+    "build:songs": "node scripts/build-songs.js",
     "export:kyb": "node scripts/build-data.js --kyb-only",
     "start": "node server/server.js",
     "dev": "node --watch server/server.js"

@@ -220,8 +220,45 @@ function packGreedy(tokens, maxLen) {
   return pages;
 }
 
-async function api(path) {
-  const res = await fetch(path);
+function splitSongIntoSlides(text, maxLen = 280) {
+  const raw = String(text || '').replace(/\r\n?/g, '\n').trim();
+  if (!raw) return [];
+  const stanzas = raw.split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
+  const slides = [];
+
+  for (const stanza of stanzas) {
+    if (stanza.length <= maxLen) {
+      slides.push(stanza);
+      continue;
+    }
+    const lines = stanza.split('\n').map(x => x.trim()).filter(Boolean);
+    const joined = [];
+    let buf = '';
+    for (const line of lines) {
+      if (!buf) {
+        buf = line;
+        continue;
+      }
+      if ((buf + '\n' + line).length <= maxLen) {
+        buf += `\n${line}`;
+      } else {
+        joined.push(buf);
+        buf = line;
+      }
+    }
+    if (buf) joined.push(buf);
+
+    for (const chunk of joined) {
+      if (chunk.length <= maxLen) slides.push(chunk);
+      else slides.push(...splitVerseIntoPages(chunk, maxLen));
+    }
+  }
+
+  return slides.length ? slides : splitVerseIntoPages(raw, maxLen);
+}
+
+async function api(path, options = undefined) {
+  const res = await fetch(path, options);
   if (!res.ok) throw new Error(`API ${path} → ${res.status}`);
   return res.json();
 }
@@ -229,11 +266,11 @@ async function api(path) {
 /* =========================================================
    Роутер
    ========================================================= */
-const isScreenMode =
-  new URLSearchParams(location.search).get('mode') === 'screen';
+const mode = new URLSearchParams(location.search).get('mode');
 
-if (isScreenMode) renderScreen();
-else              renderAdmin();
+if (mode === 'screen') renderScreen();
+else if (mode === 'songs') renderSongs();
+else renderAdmin();
 
 /* =========================================================
    АДМИН-ПАНЕЛЬ
@@ -257,6 +294,7 @@ async function renderAdmin() {
         <div class="tabs">
           <button data-tab="search" class="active">Поиск</button>
           <button data-tab="books">Книги</button>
+          <a href="?mode=songs" class="tab-songs-link">Песни</a>
         </div>
 
         <div class="tab-pane" id="pane-search">
@@ -1220,6 +1258,464 @@ async function renderAdmin() {
     state.activeRef = initial.ref;
     updatePreview(initial.text, initial.ref);
   }
+}
+
+async function renderSongs() {
+  document.title = 'Великая Благодать — Песни';
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="admin songs-admin">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="brand">
+            <a href="/" class="back-link">←</a>
+            <h1>Великая Благодать</h1>
+            <span class="ver">песни</span>
+          </div>
+          <p>Поиск песен, очередь и управление слайдами.</p>
+        </div>
+
+        <div class="search-wrap">
+          <input id="song-search" class="search-input" type="text"
+                 placeholder="Поиск по названию..." autocomplete="off" spellcheck="false">
+        </div>
+        <div class="search-meta" id="song-search-meta">Загрузка песен...</div>
+        <div id="song-results" class="scroll"></div>
+        <div class="songs-manual">
+          <button class="songs-manual-header" id="songs-manual-toggle" type="button">
+            <span class="songs-manual-title">Добавить вручную</span>
+            <span class="songs-manual-arrow" id="songs-manual-arrow">›</span>
+          </button>
+          <div class="songs-manual-body" id="songs-manual-body">
+            <input id="song-manual-title" class="search-input" type="text"
+                   placeholder="Название (необязательно)">
+            <textarea id="song-manual-lyrics" class="songs-manual-lyrics"
+                      placeholder="Текст песни (абзацы — слайды)"></textarea>
+            <button id="song-manual-add" class="btn btn-primary songs-manual-btn">Сохранить</button>
+            <div id="song-manual-status" class="songs-manual-status"></div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <div class="toolbar">
+          <div>
+            <h2>Песни · предпросмотр</h2>
+            <div class="status" id="song-status">Добавьте песню в очередь и выберите слайд</div>
+          </div>
+          <div class="actions">
+            <button id="song-btn-clear" class="btn btn-danger">Очистить экран</button>
+            <button id="song-btn-pip" class="btn btn-secondary">Поверх окон</button>
+            <button id="song-btn-open" class="btn btn-primary">Открыть экран ТВ</button>
+          </div>
+        </div>
+
+        <div class="preview-wrap">
+          <div class="preview">
+            <div id="song-preview-stage" class="stage hidden">
+              <div id="song-preview-text" class="text"></div>
+              <div id="song-preview-ref" class="ref"></div>
+            </div>
+            <div id="song-preview-placeholder" class="placeholder">Экран пуст</div>
+          </div>
+        </div>
+
+        <section class="songs-workspace">
+          <div class="songs-queue-panel">
+            <header>
+              <div class="title">Очередь песен</div>
+              <div class="sub">↑/↓ — песни, ←/→ — слайды</div>
+            </header>
+            <div id="songs-queue" class="songs-queue-list"></div>
+          </div>
+
+          <div class="songs-slide-panel">
+            <header class="songs-slide-header">
+              <div>
+                <div class="title" id="songs-current-title">Выберите песню</div>
+                <div class="sub" id="songs-current-sub">Слайды появятся здесь</div>
+              </div>
+              <div class="songs-slide-actions">
+                <button id="songs-prev-slide" class="btn btn-secondary">←</button>
+                <button id="songs-next-slide" class="btn btn-secondary">→</button>
+              </div>
+            </header>
+            <div id="songs-slide-text" class="songs-slide-text">Добавьте песню в очередь слева</div>
+          </div>
+        </section>
+      </main>
+    </div>
+  `;
+
+  const STORAGE_KEY = 'songs_queue_v1';
+  const state = {
+    songs: [],
+    queue: [],
+    activeSongIdx: -1,
+    activeSlideIdx: 0,
+    pipWindow: null,
+    pipUpdate: null
+  };
+  const $ = id => document.getElementById(id);
+  const els = {
+    search: $('song-search'),
+    manualTitle: $('song-manual-title'),
+    manualLyrics: $('song-manual-lyrics'),
+    manualAdd: $('song-manual-add'),
+    manualStatus: $('song-manual-status'),
+    searchMeta: $('song-search-meta'),
+    results: $('song-results'),
+    status: $('song-status'),
+    queue: $('songs-queue'),
+    slideTitle: $('songs-current-title'),
+    slideSub: $('songs-current-sub'),
+    slideText: $('songs-slide-text'),
+    prevSlide: $('songs-prev-slide'),
+    nextSlide: $('songs-next-slide'),
+    btnOpen: $('song-btn-open'),
+    btnPip: $('song-btn-pip'),
+    btnClear: $('song-btn-clear'),
+    previewStage: $('song-preview-stage'),
+    previewText: $('song-preview-text'),
+    previewRef: $('song-preview-ref'),
+    previewPlaceholder: $('song-preview-placeholder')
+  };
+
+  async function createManualSong() {
+    const title = (els.manualTitle.value || '').trim();
+    const lyrics = (els.manualLyrics.value || '').trim();
+    if (!lyrics) {
+      els.manualStatus.textContent = 'Введите текст песни';
+      return;
+    }
+    els.manualAdd.disabled = true;
+    els.manualStatus.textContent = 'Сохраняю...';
+    try {
+      const created = await api('/api/songs/custom', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, lyrics })
+      });
+      els.manualTitle.value = '';
+      els.manualLyrics.value = '';
+      els.manualStatus.textContent = `Сохранено: ${created.title}`;
+      await runSearch();
+      addToQueue(created);
+    } catch (err) {
+      els.manualStatus.textContent = `Ошибка: ${err.message}`;
+    } finally {
+      els.manualAdd.disabled = false;
+    }
+  }
+
+  function updatePreview(text, ref) {
+    if (!text) {
+      els.previewStage.classList.add('hidden');
+      els.previewPlaceholder.style.display = '';
+      els.previewText.textContent = '';
+      els.previewRef.textContent = '';
+      return;
+    }
+    els.previewText.textContent = text;
+    els.previewRef.textContent = ref;
+    els.previewPlaceholder.style.display = 'none';
+    els.previewStage.classList.remove('hidden');
+  }
+
+  function persistQueue() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      queue: state.queue,
+      activeSongIdx: state.activeSongIdx,
+      activeSlideIdx: state.activeSlideIdx
+    }));
+  }
+
+  function restoreQueue() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      if (!Array.isArray(parsed.queue)) return;
+      state.queue = parsed.queue.filter(item =>
+        item && item.id && item.title && Array.isArray(item.slides) && item.slides.length
+      );
+      state.activeSongIdx = Number.isInteger(parsed.activeSongIdx) ? parsed.activeSongIdx : -1;
+      state.activeSlideIdx = Number.isInteger(parsed.activeSlideIdx) ? parsed.activeSlideIdx : 0;
+      if (state.activeSongIdx >= state.queue.length) state.activeSongIdx = state.queue.length - 1;
+      if (state.activeSongIdx < 0 && state.queue.length) state.activeSongIdx = 0;
+    } catch {
+      state.queue = [];
+      state.activeSongIdx = -1;
+      state.activeSlideIdx = 0;
+    }
+  }
+
+  function currentSong() {
+    if (state.activeSongIdx < 0 || state.activeSongIdx >= state.queue.length) return null;
+    return state.queue[state.activeSongIdx];
+  }
+
+  function renderQueue() {
+    if (!state.queue.length) {
+      els.queue.innerHTML = '<div class="empty">Очередь пуста</div>';
+      return;
+    }
+    els.queue.innerHTML = state.queue.map((song, i) => `
+      <div class="songs-queue-item ${i === state.activeSongIdx ? 'active' : ''}" data-idx="${i}">
+        <button class="songs-queue-main" data-idx="${i}">
+          <div class="title">${escapeHtml(song.title)}</div>
+          <div class="meta">${song.slides.length} слайдов</div>
+        </button>
+        <button class="songs-queue-remove" data-remove="${i}" title="Удалить">×</button>
+      </div>
+    `).join('');
+
+    els.queue.querySelectorAll('[data-idx]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.activeSongIdx = Number(btn.dataset.idx);
+        state.activeSlideIdx = 0;
+        renderQueue();
+        pushCurrentSlide();
+        persistQueue();
+      });
+    });
+
+    els.queue.querySelectorAll('[data-remove]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const idx = Number(btn.dataset.remove);
+        state.queue.splice(idx, 1);
+        if (!state.queue.length) {
+          state.activeSongIdx = -1;
+          state.activeSlideIdx = 0;
+          clearVerse();
+          updatePreview('', '');
+          if (state.pipUpdate) state.pipUpdate('', '');
+        } else if (state.activeSongIdx >= state.queue.length) {
+          state.activeSongIdx = state.queue.length - 1;
+          state.activeSlideIdx = 0;
+        }
+        renderQueue();
+        pushCurrentSlide();
+        persistQueue();
+      });
+    });
+  }
+
+  function pushCurrentSlide() {
+    const song = currentSong();
+    if (!song) {
+      els.slideTitle.textContent = 'Выберите песню';
+      els.slideSub.textContent = 'Слайды появятся здесь';
+      els.slideText.textContent = 'Добавьте песню в очередь слева';
+      els.status.textContent = 'Добавьте песню в очередь и выберите слайд';
+      return;
+    }
+    if (state.activeSlideIdx < 0) state.activeSlideIdx = 0;
+    if (state.activeSlideIdx >= song.slides.length) state.activeSlideIdx = song.slides.length - 1;
+
+    const text = song.slides[state.activeSlideIdx];
+    const ref = `${song.title} (${state.activeSlideIdx + 1}/${song.slides.length})`;
+    pushVerse({ text, ref, translation: 'songs' });
+    updatePreview(text, ref);
+    if (state.pipUpdate) state.pipUpdate(text, ref);
+
+    els.slideTitle.textContent = song.title;
+    els.slideSub.textContent = `Слайд ${state.activeSlideIdx + 1} из ${song.slides.length}`;
+    els.slideText.textContent = text;
+    els.status.textContent = `${song.title} · ${state.activeSlideIdx + 1}/${song.slides.length}`;
+    persistQueue();
+  }
+
+  function addToQueue(song) {
+    if (state.queue.some(x => x.id === song.id)) {
+      state.activeSongIdx = state.queue.findIndex(x => x.id === song.id);
+      state.activeSlideIdx = 0;
+      renderQueue();
+      pushCurrentSlide();
+      return;
+    }
+    const slides = splitSongIntoSlides(song.lyrics);
+    if (!slides.length) return;
+    state.queue.push({
+      id: song.id,
+      title: song.title,
+      slides
+    });
+    state.activeSongIdx = state.queue.length - 1;
+    state.activeSlideIdx = 0;
+    renderQueue();
+    pushCurrentSlide();
+    persistQueue();
+  }
+
+  function renderSongsList(items) {
+    if (!items.length) {
+      els.results.innerHTML = '<div class="empty">Ничего не найдено</div>';
+      return;
+    }
+    els.results.innerHTML = items.map((song, i) => `
+      <div class="card songs-card">
+        <button class="songs-card-main" data-open="${i}">
+          <div class="ref">${escapeHtml(song.title)}</div>
+          <div class="text">${escapeHtml(song.firstLine || 'Без текста')}</div>
+        </button>
+        <button class="songs-card-add" data-add="${i}">+ Очередь</button>
+      </div>
+    `).join('');
+
+    els.results.querySelectorAll('[data-add]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const song = items[Number(btn.dataset.add)];
+        try {
+          const full = await api(`/api/songs/${encodeURIComponent(song.id)}`);
+          addToQueue(full);
+        } catch (err) {
+          els.searchMeta.textContent = `Ошибка: ${err.message}`;
+        }
+      });
+    });
+
+    els.results.querySelectorAll('[data-open]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const song = items[Number(btn.dataset.open)];
+        try {
+          const full = await api(`/api/songs/${encodeURIComponent(song.id)}`);
+          const slides = splitSongIntoSlides(full.lyrics);
+          els.slideTitle.textContent = full.title;
+          els.slideSub.textContent = `Предпросмотр · ${slides.length} слайдов`;
+          els.slideText.textContent = slides[0] || 'Нет текста';
+        } catch (err) {
+          els.searchMeta.textContent = `Ошибка: ${err.message}`;
+        }
+      });
+    });
+  }
+
+  const runSearch = debounce(async () => {
+    const q = els.search.value.trim();
+    try {
+      const data = q
+        ? await api(`/api/songs/search?q=${encodeURIComponent(q)}&limit=400`)
+        : await api('/api/songs?limit=400');
+      state.songs = data.items || [];
+      els.searchMeta.textContent = `Песен: ${state.songs.length}`;
+      renderSongsList(state.songs);
+    } catch (err) {
+      els.searchMeta.textContent = `Ошибка: ${err.message}`;
+    }
+  }, 180);
+
+  function navSlide(delta) {
+    const song = currentSong();
+    if (!song) return;
+    const next = state.activeSlideIdx + delta;
+    if (next < 0 || next >= song.slides.length) return;
+    state.activeSlideIdx = next;
+    pushCurrentSlide();
+  }
+
+  function navSong(delta) {
+    if (!state.queue.length) return;
+    const next = state.activeSongIdx + delta;
+    if (next < 0 || next >= state.queue.length) return;
+    state.activeSongIdx = next;
+    state.activeSlideIdx = 0;
+    renderQueue();
+    pushCurrentSlide();
+  }
+
+  function isTyping(el) {
+    return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+  }
+
+  document.addEventListener('keydown', e => {
+    if (isTyping(e.target)) return;
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    switch (e.key) {
+      case 'ArrowLeft': e.preventDefault(); navSlide(-1); break;
+      case 'ArrowRight': e.preventDefault(); navSlide(1); break;
+      case 'ArrowUp': e.preventDefault(); navSong(-1); break;
+      case 'ArrowDown': e.preventDefault(); navSong(1); break;
+    }
+  });
+
+  async function openFloatingScreen() {
+    if (!('documentPictureInPicture' in window)) {
+      alert('Plain Picture-in-Picture доступен в Chrome/Edge 116+');
+      return;
+    }
+    if (state.pipWindow && !state.pipWindow.closed) {
+      state.pipWindow.focus();
+      return;
+    }
+    const pip = await window.documentPictureInPicture.requestWindow({ width: 1280, height: 720 });
+    state.pipWindow = pip;
+    const style = pip.document.createElement('style');
+    style.textContent = `
+      html,body{margin:0;height:100%;background:#000;color:#fff;overflow:hidden}
+      .screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:4vh 5vw}
+      .stage{max-width:92vw;text-align:center;transition:opacity .5s ease}
+      .stage.hidden{opacity:0}
+      .text{font-size:clamp(28px,5.5vw,110px);line-height:1.18;white-space:pre-line}
+      .ref{margin-top:4vh;font-size:clamp(14px,1.8vw,36px);color:#888}
+    `;
+    pip.document.head.append(style);
+    pip.document.body.innerHTML = `
+      <div class="screen">
+        <div id="stage" class="stage hidden"><div id="text" class="text"></div><div id="ref" class="ref"></div></div>
+      </div>
+    `;
+    const $stage = pip.document.getElementById('stage');
+    const $text = pip.document.getElementById('text');
+    const $ref = pip.document.getElementById('ref');
+    let pending = null;
+    const update = (text, ref) => {
+      if (pending) clearTimeout(pending);
+      $stage.classList.add('hidden');
+      pending = setTimeout(() => {
+        if (!text) { $text.textContent = ''; $ref.textContent = ''; return; }
+        $text.textContent = text;
+        $ref.textContent = ref;
+        requestAnimationFrame(() => $stage.classList.remove('hidden'));
+      }, 500);
+    };
+    state.pipUpdate = update;
+    const initial = readVerse();
+    if (initial.text) update(initial.text, initial.ref);
+    pip.addEventListener('pagehide', () => {
+      state.pipUpdate = null;
+      state.pipWindow = null;
+    });
+  }
+
+  document.getElementById('songs-manual-toggle').addEventListener('click', () => {
+    const body  = document.getElementById('songs-manual-body');
+    const arrow = document.getElementById('songs-manual-arrow');
+    const open  = body.classList.toggle('open');
+    arrow.classList.toggle('open', open);
+  });
+
+  els.search.addEventListener('input', runSearch);
+  els.manualAdd.addEventListener('click', createManualSong);
+  els.prevSlide.addEventListener('click', () => navSlide(-1));
+  els.nextSlide.addEventListener('click', () => navSlide(1));
+  els.btnOpen.addEventListener('click', () => {
+    window.open(location.pathname + '?mode=screen', 'biblePresenterScreen', 'width=1200,height=720');
+  });
+  els.btnPip.addEventListener('click', openFloatingScreen);
+  els.btnClear.addEventListener('click', () => {
+    clearVerse();
+    updatePreview('', '');
+    if (state.pipUpdate) state.pipUpdate('', '');
+    els.status.textContent = 'Экран очищен';
+  });
+
+  restoreQueue();
+  renderQueue();
+  pushCurrentSlide();
+  await runSearch();
+
+  const initial = readVerse();
+  if (initial.text) updatePreview(initial.text, initial.ref);
 }
 
 /* =========================================================
