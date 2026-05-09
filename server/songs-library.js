@@ -7,9 +7,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 const DATA_DIR = resolve(ROOT, 'data');
 const CUSTOM_SONGS_PATH = join(DATA_DIR, 'songs.custom.json');
+const HIDDEN_SONGS_PATH = join(DATA_DIR, 'songs.hidden.json');
 
 let baseSongs = [];
 let customSongs = [];
+let hiddenIds = new Set();
 let songs = [];
 const byId = new Map();
 
@@ -44,7 +46,7 @@ function firstNonEmptyLine(text) {
 }
 
 function rebuildIndex() {
-  songs = [...customSongs, ...baseSongs];
+  songs = [...customSongs, ...baseSongs].filter(s => !hiddenIds.has(s.id));
   byId.clear();
   for (const song of songs) byId.set(song.id, song);
 }
@@ -60,6 +62,25 @@ async function saveCustomSongs() {
     }, null, 2),
     'utf8'
   );
+}
+
+async function saveHiddenIds() {
+  await mkdir(DATA_DIR, { recursive: true });
+  await writeFile(
+    HIDDEN_SONGS_PATH,
+    JSON.stringify([...hiddenIds], null, 2),
+    'utf8'
+  );
+}
+
+async function loadHiddenIds() {
+  try {
+    const raw = await readFile(HIDDEN_SONGS_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 async function loadCustomSongs() {
@@ -86,6 +107,7 @@ export async function loadSongs() {
 
   baseSongs = loaded;
   customSongs = await loadCustomSongs();
+  hiddenIds = new Set(await loadHiddenIds());
   rebuildIndex();
 }
 
@@ -132,6 +154,22 @@ export async function addCustomSong(input) {
   await saveCustomSongs();
   rebuildIndex();
   return song;
+}
+
+export async function deleteSong(id) {
+  const sid = String(id);
+  const isCustom = customSongs.some(s => s.id === sid);
+  if (isCustom) {
+    customSongs = customSongs.filter(s => s.id !== sid);
+    await saveCustomSongs();
+  } else if (baseSongs.some(s => s.id === sid)) {
+    hiddenIds.add(sid);
+    await saveHiddenIds();
+  } else {
+    return false;
+  }
+  rebuildIndex();
+  return true;
 }
 
 export function searchSongs(query, limit = 120) {

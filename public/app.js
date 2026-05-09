@@ -44,6 +44,26 @@ function readVerse() {
   };
 }
 
+/* =========================================================
+   Тема (день / ночь)
+   ========================================================= */
+(function initTheme() {
+  const saved = localStorage.getItem('ui-theme') || 'night';
+  document.documentElement.classList.toggle('theme-day', saved === 'day');
+})();
+
+function toggleTheme() {
+  const isDay = document.documentElement.classList.toggle('theme-day');
+  localStorage.setItem('ui-theme', isDay ? 'day' : 'night');
+  document.querySelectorAll('.theme-toggle').forEach(btn => {
+    btn.textContent = isDay ? '🌙' : '☀';
+  });
+}
+
+function themeIcon() {
+  return document.documentElement.classList.contains('theme-day') ? '🌙' : '☀';
+}
+
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -285,6 +305,7 @@ async function renderAdmin() {
           <div class="brand">
             <h1>Великая Благодать</h1>
             <span class="ver">админ</span>
+            <button class="theme-toggle" id="theme-toggle-btn" title="Сменить тему">${themeIcon()}</button>
           </div>
           <p>Полная Библия. Поиск и презентация на проектор.</p>
         </div>
@@ -1120,6 +1141,7 @@ async function renderAdmin() {
 
   els.btnPrevCh.addEventListener('click', () => navChapter(-1));
   els.btnNextCh.addEventListener('click', () => navChapter(+1));
+  document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
 
   /* ----- Клавиатура: ↑↓ — главы, ←→ — стихи ----- */
   function isTyping(el) {
@@ -1271,6 +1293,7 @@ async function renderSongs() {
             <a href="/" class="back-link">←</a>
             <h1>Великая Благодать</h1>
             <span class="ver">песни</span>
+            <button class="theme-toggle" id="theme-toggle-btn" title="Сменить тему">${themeIcon()}</button>
           </div>
           <p>Поиск песен, очередь и управление слайдами.</p>
         </div>
@@ -1336,11 +1359,13 @@ async function renderSongs() {
                 <div class="sub" id="songs-current-sub">Слайды появятся здесь</div>
               </div>
               <div class="songs-slide-actions">
+                <button id="songs-edit-slides" class="btn btn-secondary btn-sm" title="Редактировать слайды">✏ Редакт.</button>
                 <button id="songs-prev-slide" class="btn btn-secondary">←</button>
                 <button id="songs-next-slide" class="btn btn-secondary">→</button>
               </div>
             </header>
             <div id="songs-slide-text" class="songs-slide-text">Добавьте песню в очередь слева</div>
+            <div id="songs-slide-editor" class="songs-slide-editor" style="display:none"></div>
           </div>
         </section>
       </main>
@@ -1353,6 +1378,7 @@ async function renderSongs() {
     queue: [],
     activeSongIdx: -1,
     activeSlideIdx: 0,
+    editSlides: null,
     pipWindow: null,
     pipUpdate: null
   };
@@ -1370,6 +1396,8 @@ async function renderSongs() {
     slideTitle: $('songs-current-title'),
     slideSub: $('songs-current-sub'),
     slideText: $('songs-slide-text'),
+    editBtn: $('songs-edit-slides'),
+    slideEditor: $('songs-slide-editor'),
     prevSlide: $('songs-prev-slide'),
     nextSlide: $('songs-next-slide'),
     btnOpen: $('song-btn-open'),
@@ -1406,6 +1434,147 @@ async function renderSongs() {
     } finally {
       els.manualAdd.disabled = false;
     }
+  }
+
+  /* ---- Редактор слайдов ---- */
+  function enterEditMode() {
+    const song = currentSong();
+    if (!song) return;
+    state.editSlides = [...song.slides];
+    els.slideText.style.display = 'none';
+    els.slideEditor.style.display = 'flex';
+    els.prevSlide.disabled = true;
+    els.nextSlide.disabled = true;
+    els.editBtn.classList.add('songs-edit-active');
+    renderEditor();
+  }
+
+  function exitEditMode(save) {
+    if (save && state.editSlides !== null) {
+      const song = currentSong();
+      if (song) {
+        const textareas = els.slideEditor.querySelectorAll('.slide-edit-ta');
+        const newSlides = Array.from(textareas)
+          .map(ta => ta.value.trim())
+          .filter(Boolean);
+        if (newSlides.length) {
+          song.slides = newSlides;
+          if (state.activeSlideIdx >= newSlides.length) state.activeSlideIdx = 0;
+          persistQueue();
+          renderQueue();
+        }
+      }
+    }
+    state.editSlides = null;
+    els.slideText.style.display = '';
+    els.slideEditor.style.display = 'none';
+    els.prevSlide.disabled = false;
+    els.nextSlide.disabled = false;
+    els.editBtn.classList.remove('songs-edit-active');
+    pushCurrentSlide();
+  }
+
+  function syncEditorSlides() {
+    const textareas = els.slideEditor.querySelectorAll('.slide-edit-ta');
+    state.editSlides = Array.from(textareas).map(ta => ta.value);
+  }
+
+  function renderEditor() {
+    const slides = state.editSlides;
+
+    function insertDivider(afterIdx) {
+      return `<div class="slide-insert-divider" data-after="${afterIdx}">
+        <span class="slide-insert-line"></span>
+        <button class="slide-insert-btn" data-after="${afterIdx}">＋ слайд</button>
+        <span class="slide-insert-line"></span>
+      </div>`;
+    }
+
+    const itemsHtml = slides.map((text, i) => `
+      ${i === 0 ? insertDivider(-1) : ''}
+      <div class="slide-edit-item">
+        <div class="slide-edit-head">
+          <span class="slide-edit-num">Слайд ${i + 1}</span>
+          <div class="slide-edit-item-actions">
+            ${i > 0 ? `<button class="slide-move-up" data-i="${i}">↑ строку</button>` : ''}
+            ${i < slides.length - 1 ? `<button class="slide-move-down" data-i="${i}">строку ↓</button>` : ''}
+            ${i < slides.length - 1 ? `<button class="slide-merge" data-i="${i}">⤵ объед.</button>` : ''}
+            ${slides.length > 1 ? `<button class="slide-del" data-i="${i}">✕</button>` : ''}
+          </div>
+        </div>
+        <textarea class="slide-edit-ta" data-i="${i}" rows="4">${escapeHtml(text)}</textarea>
+      </div>
+      ${insertDivider(i)}
+    `).join('');
+
+    els.slideEditor.innerHTML = `
+      <div class="slide-edit-bar">
+        <button id="slide-save-btn" class="btn btn-primary btn-sm">✓ Сохранить</button>
+        <button id="slide-cancel-btn" class="btn btn-secondary btn-sm">Отмена</button>
+        <span class="slide-edit-count">${slides.length} слайдов</span>
+      </div>
+      <div class="slide-edit-list">${itemsHtml}</div>
+    `;
+
+    document.getElementById('slide-save-btn').addEventListener('click', () => exitEditMode(true));
+    document.getElementById('slide-cancel-btn').addEventListener('click', () => exitEditMode(false));
+
+    els.slideEditor.querySelectorAll('.slide-insert-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        syncEditorSlides();
+        const after = Number(btn.dataset.after);
+        state.editSlides.splice(after + 1, 0, '');
+        renderEditor();
+        // фокус на новый textarea
+        const tas = els.slideEditor.querySelectorAll('.slide-edit-ta');
+        if (tas[after + 1]) tas[after + 1].focus();
+      });
+    });
+
+    els.slideEditor.querySelectorAll('.slide-merge').forEach(btn => {
+      btn.addEventListener('click', () => {
+        syncEditorSlides();
+        const i = Number(btn.dataset.i);
+        state.editSlides[i] = (state.editSlides[i] + '\n' + state.editSlides[i + 1]).trim();
+        state.editSlides.splice(i + 1, 1);
+        renderEditor();
+      });
+    });
+
+    els.slideEditor.querySelectorAll('.slide-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        syncEditorSlides();
+        const i = Number(btn.dataset.i);
+        state.editSlides.splice(i, 1);
+        renderEditor();
+      });
+    });
+
+    els.slideEditor.querySelectorAll('.slide-move-up').forEach(btn => {
+      btn.addEventListener('click', () => {
+        syncEditorSlides();
+        const i = Number(btn.dataset.i);
+        const lines = state.editSlides[i].split('\n').map(l => l.trim()).filter(Boolean);
+        if (lines.length <= 1) return;
+        const first = lines.shift();
+        state.editSlides[i] = lines.join('\n');
+        state.editSlides[i - 1] = (state.editSlides[i - 1] + '\n' + first).trim();
+        renderEditor();
+      });
+    });
+
+    els.slideEditor.querySelectorAll('.slide-move-down').forEach(btn => {
+      btn.addEventListener('click', () => {
+        syncEditorSlides();
+        const i = Number(btn.dataset.i);
+        const lines = state.editSlides[i].split('\n').map(l => l.trim()).filter(Boolean);
+        if (lines.length <= 1) return;
+        const last = lines.pop();
+        state.editSlides[i] = lines.join('\n');
+        state.editSlides[i + 1] = (last + '\n' + state.editSlides[i + 1]).trim();
+        renderEditor();
+      });
+    });
   }
 
   function updatePreview(text, ref) {
@@ -1559,6 +1728,7 @@ async function renderSongs() {
           <div class="text">${escapeHtml(song.firstLine || 'Без текста')}</div>
         </button>
         <button class="songs-card-add" data-add="${i}">+ Очередь</button>
+        <button class="songs-card-del" data-del="${i}" title="Удалить песню">✕</button>
       </div>
     `).join('');
 
@@ -1583,6 +1753,21 @@ async function renderSongs() {
           els.slideTitle.textContent = full.title;
           els.slideSub.textContent = `Предпросмотр · ${slides.length} слайдов`;
           els.slideText.textContent = slides[0] || 'Нет текста';
+        } catch (err) {
+          els.searchMeta.textContent = `Ошибка: ${err.message}`;
+        }
+      });
+    });
+
+    els.results.querySelectorAll('[data-del]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const song = items[Number(btn.dataset.del)];
+        if (!confirm(`Удалить «${song.title}»?`)) return;
+        try {
+          await api(`/api/songs/${encodeURIComponent(song.id)}`, { method: 'DELETE' });
+          state.songs = state.songs.filter(s => s.id !== song.id);
+          els.searchMeta.textContent = `Песен: ${state.songs.length}`;
+          renderSongsList(state.songs);
         } catch (err) {
           els.searchMeta.textContent = `Ошибка: ${err.message}`;
         }
@@ -1698,6 +1883,11 @@ async function renderSongs() {
   els.manualAdd.addEventListener('click', createManualSong);
   els.prevSlide.addEventListener('click', () => navSlide(-1));
   els.nextSlide.addEventListener('click', () => navSlide(1));
+  els.editBtn.addEventListener('click', () => {
+    if (state.editSlides !== null) exitEditMode(false);
+    else enterEditMode();
+  });
+  document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
   els.btnOpen.addEventListener('click', () => {
     window.open(location.pathname + '?mode=screen', 'biblePresenterScreen', 'width=1200,height=720');
   });

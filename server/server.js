@@ -19,7 +19,7 @@ import {
   load, getTranslations, getBooksIndex, getBook, getChapter, search
 } from './library.js';
 import {
-  loadSongs, getSongs, getSong, searchSongs, addCustomSong
+  loadSongs, getSongs, getSong, searchSongs, addCustomSong, deleteSong
 } from './songs-library.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -97,6 +97,12 @@ fastify.post('/api/songs/custom', async (req, reply) => {
   } catch (err) {
     return reply.code(400).send({ error: err.message || 'Invalid song payload' });
   }
+});
+
+fastify.delete('/api/songs/:id', async (req, reply) => {
+  const deleted = await deleteSong(req.params.id);
+  if (!deleted) return reply.code(404).send({ error: 'Song not found' });
+  return { ok: true };
 });
 
 /* ---------------------- Статика и health ---------------------- */
