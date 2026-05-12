@@ -1,4 +1,6 @@
-/* global React, ReactDOM, TVScreen, BOOKS_OT_FULL, BOOKS_NT_FULL, SCREEN_BGS, TEMPLATES, FONTS_SCREEN */
+/* global React, ReactDOM */
+import { BOOKS_OT_FULL, BOOKS_NT_FULL, SCREEN_BGS, TEMPLATES, FONTS_SCREEN } from './components/AppData.jsx';
+import TVScreen from './components/TVScreen.jsx';
 const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
 /* ============ localStorage sync helpers ============ */
@@ -21,6 +23,45 @@ function readScreenState() {
     fontSize:  Number(localStorage.getItem('screen-fontSize')) || 80,
   };
 }
+
+/* ============ Text split utility ============
+ * Splits `text` into pages where each page fits at `fontSize` within availW×availH.
+ * Uses the same char-width heuristic as fitFontSize in tv-screen.jsx.
+ * Returns an array of strings; length=1 means no split needed.
+ */
+function splitTextForScreen(text, fontSize, availW, availH) {
+  const charW = 0.5;
+  const lineH = 1.3;
+  const charsPerLine = Math.max(1, Math.floor(availW / (fontSize * charW)));
+  const linesPerPage = Math.max(1, Math.floor(availH / (fontSize * lineH)));
+
+  // Word-wrap: convert text into rendered lines (respecting existing \n)
+  const allLines = [];
+  for (const para of (text || '').split('\n')) {
+    if (!para.trim()) { allLines.push(''); continue; }
+    let cur = '';
+    for (const word of para.split(' ').filter(Boolean)) {
+      const next = cur ? `${cur} ${word}` : word;
+      if (next.length > charsPerLine && cur) { allLines.push(cur); cur = word; }
+      else cur = next;
+    }
+    if (cur) allLines.push(cur);
+  }
+
+  if (allLines.length <= linesPerPage) return [text]; // fits — no split
+
+  const parts = [];
+  for (let i = 0; i < allLines.length; i += linesPerPage) {
+    parts.push(allLines.slice(i, i + linesPerPage).join('\n').trim());
+  }
+  return parts.length ? parts : [text];
+}
+
+// Screen geometry constants (must match TVScreen padding in tv-screen.jsx)
+const VERSE_AVAIL_W = 1920 * 0.78;  // verse template: padding 12% each side
+const VERSE_AVAIL_H = 824;           // 1080 - 8%*2 - ref label
+const SONG_AVAIL_W  = 1920 * 0.80;  // song-verse: padding 10% each side
+const SONG_AVAIL_H  = 788;           // 1080 - 8%*2 - header - footer
 
 /* ============ TV Screen mode (?mode=screen) ============ */
 function ScreenMode() {
@@ -69,11 +110,6 @@ function parseSongBlocks(lyrics) {
 function defaultContent(template) {
   const kyVerse = 'Анткени Кудай адамдарды ушунчалык сүйгөндүктөн, ишенген ар бир адам өлбөстөн, түбөлүк өмүргө ээ болсун деп, Өзүнүн жалгыз Уулун берди.';
   switch (template) {
-    case 'verse':      return { ref:'Жакан 3:16', text: kyVerse, translation:'КРГ · KYB 2004' };
-    case 'bilingual':  return { ref:'Жакан 3:16', text: kyVerse, text2:'Ибо так возлюбил Бог мир, что отдал Сына Своего Единородного, дабы всякий верующий в Него, не погиб, но имел жизнь вечную.', lang1:'КРГ · Кыргызча', lang2:'РСТ · Русский' };
-    case 'song-title': return { title:'Осанна', subtitle:'Прославляю Я Тебя', songNum: 47 };
-    case 'song-verse': return { text:'Адам Сенсиз жашаса,\nТүйшүктөнүп кыйналат\nМээримиң Сенин чексиз\nТеңир, Ырым Сага арналат', partNum: 1, songTitle:'Осанна', position:'1 / 4' };
-    case 'chorus':     return { text:'Осанна, Осанна\nДаназалаймин Сени\nЖаным эңсейт Теңирди', songTitle:'Осанна' };
     case 'welcome':    return { kicker:'Воскресное служение', title:'Кош келиңиз', subtitle:'Добро пожаловать', date:'11 мая 2026' };
     case 'prayer':     return { text:'«Атабыз, асмандагы Атабыз,\nСенин ысмың ыйыкталсын,\nСенин Падышачылыгың келсин.»', ref:'Матай 6:9' };
     case 'announce':   return { kicker:'Объявление · Воскресенье', title:'Молитвенное собрание', desc:'Приглашаем всех на совместную молитву и пост в эту пятницу в 19:00.' };
@@ -115,6 +151,8 @@ function App() {
   const [chapterLoading, setChapterLoading] = useState(false);
   const [chapterBookMeta, setChapterBookMeta] = useState(null);
   const [activeVerse, setActiveVerse] = useState(null);
+  const [verseParts, setVerseParts] = useState([]);    // split parts of active verse
+  const [versePartIdx, setVersePartIdx] = useState(0); // which part is on screen
 
   // Songs from API
   const [songsList, setSongsList] = useState([]);
@@ -122,8 +160,14 @@ function App() {
   const [activeSongBlocks, setActiveSongBlocks] = useState([]);
   const [activeSongData, setActiveSongData] = useState(null);
   const [activeBlockIdx, setActiveBlockIdx] = useState(0);
+  const [songBlockParts, setSongBlockParts] = useState([]);    // split parts of active song block
+  const [songBlockPartIdx, setSongBlockPartIdx] = useState(0);
   const [songCache, setSongCache] = useState({});
   const [editingSong, setEditingSong] = useState(null); // null | { id, title, lyrics, isNew }
+
+  // Song queue
+  const [songQueue, setSongQueue] = useState([]);
+  const [queueIdx, setQueueIdx] = useState(-1);
 
   // Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -137,6 +181,7 @@ function App() {
   const [fontSize, setFontSize] = useState(() => Number(localStorage.getItem('screen-fontSize') || 80));
   const [content, setContent] = useState(defaultContent('verse'));
   const [screenOn, setScreenOn] = useState(false);
+  const [screenExternal, setScreenExternal] = useState(false);
   const screenWindowRef = useRef(null);
 
   const C = tokens(dark);
@@ -183,8 +228,16 @@ function App() {
     localStorage.setItem('ui-trans', translation);
   }, [translation]);
 
+  // Tracks whether the next template-change effect should be skipped
+  // (used when switching verse↔bilingual while a verse is already active).
+  const skipContentResetRef = useRef(false);
+
   // ── When template changes reset content ───────────────────────────
   useEffect(() => {
+    if (skipContentResetRef.current) {
+      skipContentResetRef.current = false;
+      return;
+    }
     setContent(defaultContent(template));
   }, [template]);
 
@@ -195,6 +248,7 @@ function App() {
       if (screenWindowRef.current && screenWindowRef.current.closed) {
         screenWindowRef.current = null;
         setScreenOn(false);
+        setScreenExternal(false);
       }
     }, 1500);
     return () => clearInterval(id);
@@ -217,10 +271,35 @@ function App() {
       sendBilingualVerse(verseNum, text);
       return;
     }
-    const ref = `${bookLabel(chapterBookMeta)} ${chapter}:${verseNum}`;
-    const newContent = { ref, text, translation: TRANS_LABEL[translation] || '' };
+    const parts = splitTextForScreen(text, fontSize, VERSE_AVAIL_W, VERSE_AVAIL_H);
     setActiveVerse(verseNum);
+    setVerseParts(parts);
+    setVersePartIdx(0);
+    const ref = `${bookLabel(chapterBookMeta)} ${chapter}:${verseNum}`;
+    const newContent = {
+      ref,
+      text: parts[0],
+      translation: TRANS_LABEL[translation] || '',
+      partIdx: 0,
+      totalParts: parts.length,
+    };
     setTemplate('verse');
+    setContent(newContent);
+    pushToScreen('verse', newContent);
+  }
+
+  function sendCurrentVersePart(partIdx) {
+    const v = chapterVerses.find(vv => vv.number === activeVerse);
+    if (!v || !verseParts[partIdx]) return;
+    setVersePartIdx(partIdx);
+    const ref = `${bookLabel(chapterBookMeta)} ${chapter}:${activeVerse}`;
+    const newContent = {
+      ref,
+      text: verseParts[partIdx],
+      translation: TRANS_LABEL[translation] || '',
+      partIdx,
+      totalParts: verseParts.length,
+    };
     setContent(newContent);
     pushToScreen('verse', newContent);
   }
@@ -228,7 +307,8 @@ function App() {
   async function sendBilingualVerse(verseNum, text) {
     const book = allBooks[bookIdx];
     if (!book) return;
-    const ref = `${bookLabel(chapterBookMeta)} ${chapter}:${verseNum}`;
+    const ruName = book[4] || chapterBookMeta?.ru || bookLabel(chapterBookMeta);
+    const ref = `${ruName} ${chapter}:${verseNum}`;
     const trans2 = BILINGUAL_PAIR[translation] || 'rst';
     const lang1 = TRANS_LABEL[translation] || translation;
     const lang2 = TRANS_LABEL[trans2] || trans2;
@@ -263,6 +343,21 @@ function App() {
     } catch {}
   }
 
+  function addToQueue(song) {
+    setSongQueue(prev => prev.find(s => s.id === song.id) ? prev : [...prev, { id: song.id, title: song.title, firstLine: song.firstLine || '' }]);
+  }
+
+  function removeFromQueue(idx) {
+    setSongQueue(prev => prev.filter((_, i) => i !== idx));
+    setQueueIdx(prev => prev === idx ? -1 : prev > idx ? prev - 1 : prev);
+  }
+
+  function selectQueueSong(idx) {
+    setQueueIdx(idx);
+    const s = songQueue[idx];
+    if (s) selectSong(s.id);
+  }
+
   function sendSongTitle() {
     if (!activeSongData) return;
     setTemplate('song-title');
@@ -275,24 +370,81 @@ function App() {
     if (!activeSongData || !activeSongBlocks[idx]) return;
     const block = activeSongBlocks[idx];
     setActiveBlockIdx(idx);
+    const parts = splitTextForScreen(block.text, fontSize, SONG_AVAIL_W, SONG_AVAIL_H);
+    setSongBlockParts(parts);
+    setSongBlockPartIdx(0);
+    pushSongBlockPart(idx, block, parts, 0);
+  }
+
+  function pushSongBlockPart(idx, block, parts, partIdx) {
     const total = activeSongBlocks.length;
     let tmpl, newContent;
     if (block.type === 'chorus') {
       tmpl = 'chorus';
-      newContent = { text: block.text, songTitle: activeSongData.title };
+      newContent = {
+        text: parts[partIdx],
+        songTitle: activeSongData.title,
+        partIdx, totalParts: parts.length,
+      };
     } else {
       tmpl = 'song-verse';
-      newContent = { text: block.text, partNum: block.n, songTitle: activeSongData.title, position: `${idx+1} / ${total}` };
+      newContent = {
+        text: parts[partIdx],
+        partNum: block.n,
+        songTitle: activeSongData.title,
+        position: `${idx+1} / ${total}`,
+        partIdx, totalParts: parts.length,
+      };
     }
     setTemplate(tmpl);
     setContent(newContent);
     pushToScreen(tmpl, newContent);
   }
 
+  function sendCurrentSongBlockPart(partIdx) {
+    const block = activeSongBlocks[activeBlockIdx];
+    if (!block || !songBlockParts[partIdx]) return;
+    setSongBlockPartIdx(partIdx);
+    pushSongBlockPart(activeBlockIdx, block, songBlockParts, partIdx);
+  }
+
   function clearScreen() {
     setTemplate('logo');
     setContent({});
     pushToScreen('logo', {});
+  }
+
+  // ── Smart template switcher: re-sends active verse when switching
+  //    between 'verse' and 'bilingual' so the screen doesn't flash
+  //    back to the default placeholder content.
+  function handleSetTemplate(newTemplate) {
+    const bibleSet = ['verse', 'bilingual'];
+    if (bibleSet.includes(newTemplate) && activeVerse !== null) {
+      const v = chapterVerses.find(vv => vv.number === activeVerse);
+      if (v) {
+        skipContentResetRef.current = true;
+        setTemplate(newTemplate);
+        if (newTemplate === 'verse') {
+          const ref = `${bookLabel(chapterBookMeta)} ${chapter}:${activeVerse}`;
+          const nc = { ref, text: v.text, translation: TRANS_LABEL[translation] || '' };
+          setContent(nc);
+          pushToScreen('verse', nc);
+        } else {
+          sendBilingualVerse(activeVerse, v.text);
+        }
+        return;
+      }
+    }
+    const serviceSet = ['welcome', 'prayer', 'announce'];
+    if (serviceSet.includes(newTemplate)) {
+      const defaults = defaultContent(newTemplate);
+      skipContentResetRef.current = true;
+      setTemplate(newTemplate);
+      setContent(defaults);
+      pushToScreen(newTemplate, defaults);
+      return;
+    }
+    setTemplate(newTemplate);
   }
 
   // ── Song editor ────────────────────────────────────────────
@@ -349,6 +501,11 @@ function App() {
         case 'ArrowUp':   e.preventDefault(); setChapter(c => Math.max(1, c - 1)); break;
         case 'ArrowDown': e.preventDefault(); setChapter(c => Math.min(maxCh, c + 1)); break;
         case 'ArrowLeft': e.preventDefault(); {
+          // Navigate to previous part of current verse, or previous verse
+          if (verseParts.length > 1 && versePartIdx > 0) {
+            sendCurrentVersePart(versePartIdx - 1);
+            break;
+          }
           if (!chapterVerses.length) break;
           const ci = chapterVerses.findIndex(v => v.number === activeVerse);
           const ni = ci <= 0 ? 0 : ci - 1;
@@ -356,6 +513,11 @@ function App() {
           break;
         }
         case 'ArrowRight': e.preventDefault(); {
+          // Navigate to next part of current verse, or next verse
+          if (verseParts.length > 1 && versePartIdx < verseParts.length - 1) {
+            sendCurrentVersePart(versePartIdx + 1);
+            break;
+          }
           if (!chapterVerses.length) break;
           const ci = chapterVerses.findIndex(v => v.number === activeVerse);
           const ni = ci < 0 ? 0 : Math.min(chapterVerses.length - 1, ci + 1);
@@ -366,25 +528,41 @@ function App() {
     } else if (tab === 'songs') {
       switch (e.key) {
         case 'ArrowUp': e.preventDefault(); {
-          if (!songsList.length) break;
-          const ci = songsList.findIndex(s => s.id === activeSongId);
-          const ni = ci <= 0 ? 0 : ci - 1;
-          if (songsList[ni]) selectSong(songsList[ni].id);
+          if (songQueue.length > 0) {
+            selectQueueSong(Math.max(0, queueIdx <= 0 ? 0 : queueIdx - 1));
+          } else {
+            const ci = songsList.findIndex(s => s.id === activeSongId);
+            const ni = ci <= 0 ? 0 : ci - 1;
+            if (songsList[ni]) selectSong(songsList[ni].id);
+          }
           break;
         }
         case 'ArrowDown': e.preventDefault(); {
-          if (!songsList.length) break;
-          const ci = songsList.findIndex(s => s.id === activeSongId);
-          const ni = ci < 0 ? 0 : Math.min(songsList.length - 1, ci + 1);
-          if (songsList[ni]) selectSong(songsList[ni].id);
+          if (songQueue.length > 0) {
+            selectQueueSong(Math.min(songQueue.length - 1, queueIdx < 0 ? 0 : queueIdx + 1));
+          } else {
+            const ci = songsList.findIndex(s => s.id === activeSongId);
+            const ni = ci < 0 ? 0 : Math.min(songsList.length - 1, ci + 1);
+            if (songsList[ni]) selectSong(songsList[ni].id);
+          }
           break;
         }
         case 'ArrowLeft': e.preventDefault(); {
+          // Navigate to previous part of current block, or previous block
+          if (songBlockParts.length > 1 && songBlockPartIdx > 0) {
+            sendCurrentSongBlockPart(songBlockPartIdx - 1);
+            break;
+          }
           if (!activeSongBlocks.length) break;
           sendSongBlock(Math.max(0, activeBlockIdx - 1));
           break;
         }
         case 'ArrowRight': e.preventDefault(); {
+          // Navigate to next part of current block, or next block
+          if (songBlockParts.length > 1 && songBlockPartIdx < songBlockParts.length - 1) {
+            sendCurrentSongBlockPart(songBlockPartIdx + 1);
+            break;
+          }
           if (!activeSongBlocks.length) break;
           sendSongBlock(Math.min(activeSongBlocks.length - 1, activeBlockIdx + 1));
           break;
@@ -399,11 +577,43 @@ function App() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  function openTvScreen() {
+  async function openTvScreen() {
     if (screenWindowRef.current && !screenWindowRef.current.closed) {
       screenWindowRef.current.focus();
       return;
     }
+
+    // Try Window Management API (Chrome 100+) — open on external monitor like PowerPoint
+    if ('getScreenDetails' in window) {
+      try {
+        const details = await window.getScreenDetails();
+        const external = details.screens.find(s => !s.isPrimary) || null;
+        if (external) {
+          const features = [
+            `left=${external.left}`,
+            `top=${external.top}`,
+            `width=${external.width}`,
+            `height=${external.height}`,
+            'menubar=no,toolbar=no,location=no,status=no',
+          ].join(',');
+          const w = window.open('?mode=screen', 'tv-screen', features);
+          if (w) {
+            screenWindowRef.current = w;
+            setScreenOn(true);
+            setScreenExternal(true);
+            // request fullscreen after page loads
+            w.addEventListener('load', () => {
+              w.document.documentElement.requestFullscreen?.().catch(() => {});
+            }, { once: true });
+            return;
+          }
+        }
+      } catch (_) {
+        // permission denied or API unavailable — fall through to default
+      }
+    }
+
+    // Fallback: open as regular popup
     const w = window.open('?mode=screen', 'tv-screen', 'width=1920,height=1080,menubar=no,toolbar=no,location=no,status=no');
     if (w) {
       screenWindowRef.current = w;
@@ -417,6 +627,7 @@ function App() {
     }
     screenWindowRef.current = null;
     setScreenOn(false);
+    setScreenExternal(false);
   }
 
   // Search with debounce
@@ -453,9 +664,9 @@ function App() {
   const state = { template, bg, fontStack, fontSize, content };
   const currentBook = allBooks[bookIdx];
   const chapterTitle = chapterBookMeta
-    ? `${bookLabel(chapterBookMeta)} · Глава ${chapter}`
+    ? `${chapterBookMeta.ruFull || chapterBookMeta.ru} · Глава ${chapter}`
     : currentBook
-      ? `${currentBook[1]} · Глава ${chapter}`
+      ? `${currentBook[5] || currentBook[1]} · Глава ${chapter}`
       : 'Загрузка...';
 
   return (
@@ -489,6 +700,8 @@ function App() {
         sendSongBlock={sendSongBlock}
         openSongEditor={openSongEditor}
         openNewSong={openNewSong}
+        addToQueue={addToQueue}
+        songQueue={songQueue}
         searchQuery={searchQuery}
         searchResults={searchResults}
         searchLoading={searchLoading}
@@ -498,12 +711,13 @@ function App() {
       <Main
         C={C} dark={dark}
         state={state}
-        template={template} setTemplate={setTemplate}
+        template={template} setTemplate={handleSetTemplate}
         bg={bg} setBg={setBg}
         fontId={fontId} setFontId={setFontId}
         fontSize={fontSize} setFontSize={setFontSize}
-        content={content} setContent={setContent}
+        content={content} setContent={setContent} pushToScreen={pushToScreen}
         screenOn={screenOn}
+        screenExternal={screenExternal}
         openTvScreen={openTvScreen}
         closeTvScreen={closeTvScreen}
         tab={tab}
@@ -521,6 +735,10 @@ function App() {
         sendSongBlock={sendSongBlock}
         openSongEditor={openSongEditor}
         clearScreen={clearScreen}
+        songQueue={songQueue}
+        queueIdx={queueIdx}
+        removeFromQueue={removeFromQueue}
+        selectQueueSong={selectQueueSong}
       />
     </div>
   );
@@ -531,7 +749,7 @@ function Sidebar({ C, dark, setDark, translation, setTranslation, tab, setTab,
   bookIdx, setBookIdx, chapter, setChapter,
   activeSongId, activeSongBlocks, activeSongData, activeBlockIdx,
   songsList, selectSong, sendSongTitle, sendSongBlock,
-  openSongEditor, openNewSong,
+  openSongEditor, openNewSong, addToQueue, songQueue,
   searchQuery, searchResults, searchLoading, handleSearchInput, sendSearchResult,
 }) {
   return (
@@ -615,6 +833,7 @@ function Sidebar({ C, dark, setDark, translation, setTranslation, tab, setTab,
             activeBlockIdx={activeBlockIdx}
             selectSong={selectSong} sendSongTitle={sendSongTitle} sendSongBlock={sendSongBlock}
             openSongEditor={openSongEditor} openNewSong={openNewSong}
+            addToQueue={addToQueue} songQueue={songQueue}
           />
         )}
       </div>
@@ -677,68 +896,112 @@ function SearchTab({ C, searchQuery, searchResults, searchLoading, handleSearchI
 
 /* ============ Books Tab ============ */
 function BooksTab({ C, bookIdx, setBookIdx, chapter, setChapter }) {
+  const expandedRef = useRef(null);
   const allBooks = useMemo(() => [...BOOKS_OT_FULL, ...BOOKS_NT_FULL], []);
-  const book = allBooks[bookIdx];
-  const chapterCount = book ? book[2] : 28;
 
   function selectBook(idx) {
+    if (bookIdx === idx) return; // already open — don't collapse
     setBookIdx(idx);
     setChapter(1);
   }
 
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap: 14 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: C.textSubtle, letterSpacing: 1 }}>ВЕТХИЙ ЗАВЕТ · 39 КНИГ</div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap: 5 }}>
-        {BOOKS_OT_FULL.map(([n, f], i) => (
-          <div key={i} onClick={() => selectBook(i)} title={f} style={{
-            padding:'8px 4px', borderRadius: 8,
-            border: `1px solid ${bookIdx===i ? C.accent : C.border}`,
-            background: bookIdx===i ? C.accentSoft : 'transparent',
-            color: bookIdx===i ? C.accent : C.text,
-            textAlign:'center', fontSize: 12, fontWeight: bookIdx===i ? 600 : 500,
-            cursor:'pointer',
-          }}>{n}</div>
-        ))}
-      </div>
-      <div style={{ fontSize: 10, fontWeight: 700, color: C.textSubtle, letterSpacing: 1, marginTop: 8 }}>НОВЫЙ ЗАВЕТ · 27 КНИГ</div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap: 5 }}>
-        {BOOKS_NT_FULL.map(([n, f], i) => {
-          const realIdx = i + BOOKS_OT_FULL.length;
-          return (
-            <div key={i} onClick={() => selectBook(realIdx)} title={f} style={{
-              padding:'8px 4px', borderRadius: 8,
-              border: `1px solid ${bookIdx===realIdx ? C.accent : C.border}`,
-              background: bookIdx===realIdx ? C.accentSoft : 'transparent',
-              color: bookIdx===realIdx ? C.accent : C.text,
-              textAlign:'center', fontSize: 12, fontWeight: bookIdx===realIdx ? 600 : 500,
-              cursor:'pointer',
-            }}>{n}</div>
+  function selectChapter(idx, ch) {
+    setBookIdx(idx);
+    setChapter(ch);
+    // scroll expanded chapters into view
+    setTimeout(() => expandedRef.current?.scrollIntoView({ behavior:'smooth', block:'nearest' }), 50);
+  }
+
+  function renderBookSection(books, startIdx, label) {
+    const rows = [];
+    let rowBuf = [];
+
+    function flushRow(key) {
+      if (!rowBuf.length) return;
+      rows.push(
+        <div key={`row-${key}`} style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap: 5 }}>
+          {rowBuf}
+        </div>
+      );
+      rowBuf = [];
+    }
+
+    books.forEach(([kyShort, kyFull, chapCount, serverId, ruShort, ruFull], i) => {
+      const realIdx = startIdx + i;
+      const isActive = bookIdx === realIdx;
+      const colPos = i % 3; // 0,1,2
+
+      rowBuf.push(
+        <div key={realIdx} onClick={() => selectBook(realIdx)} title={ruFull || kyFull} style={{
+          padding:'8px 4px', borderRadius: 8,
+          border: `1px solid ${isActive ? C.accent : C.border}`,
+          background: isActive ? C.accentSoft : 'transparent',
+          color: isActive ? C.accent : C.text,
+          textAlign:'center', fontSize: 12, fontWeight: isActive ? 700 : 500,
+          cursor:'pointer',
+        }}>{ruShort || kyShort}</div>
+      );
+
+      // After every 3rd book (end of row) or when active book ends a cell, flush
+      const isEndOfRow = colPos === 2;
+      const isLast = i === books.length - 1;
+
+      if (isEndOfRow || isLast) {
+        // fill remaining cells if last incomplete row
+        while (rowBuf.length < 3 && isLast) rowBuf.push(<div key={`pad-${i}-${rowBuf.length}`}/>);
+        flushRow(i);
+
+        // If active book is in this row, inject the chapter grid right after
+        const rowStart = i - colPos;
+        const rowEnd = Math.min(rowStart + 2, books.length - 1);
+        const activeInRow = bookIdx >= startIdx + rowStart && bookIdx <= startIdx + rowEnd;
+        if (activeInRow) {
+          rows.push(
+            <div key={`chapters-${realIdx}`} ref={expandedRef} style={{
+              background: C.cardBg,
+              border: `1px solid ${C.accent}`,
+              borderRadius: 10, padding: '10px 8px',
+            }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.accent, letterSpacing: 1, marginBottom: 8 }}>
+                {allBooks[bookIdx][5] || allBooks[bookIdx][1]} · ГЛАВЫ
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(6, 1fr)', gap: 4 }}>
+                {Array.from({ length: allBooks[bookIdx][2] }).map((_, ci) => (
+                  <div key={ci} onClick={e => { e.stopPropagation(); selectChapter(bookIdx, ci+1); }} style={{
+                    padding:'5px 0', borderRadius: 6,
+                    border: `1px solid ${chapter===ci+1 ? C.accent : C.border}`,
+                    background: chapter===ci+1 ? C.accent : 'transparent',
+                    color: chapter===ci+1 ? '#FBF8F2' : C.text,
+                    textAlign:'center', fontSize: 11, fontWeight: chapter===ci+1 ? 700 : 400,
+                    cursor:'pointer',
+                  }}>{ci+1}</div>
+                ))}
+              </div>
+            </div>
           );
-        })}
+        }
+      }
+    });
+
+    return (
+      <div style={{ display:'flex', flexDirection:'column', gap: 5 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: C.textSubtle, letterSpacing: 1, marginTop: 8 }}>{label}</div>
+        {rows}
       </div>
-      <div style={{ fontSize: 10, fontWeight: 700, color: C.textSubtle, letterSpacing: 1, marginTop: 12 }}>
-        ГЛАВА · {book ? book[1] : ''}
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(6, 1fr)', gap: 4 }}>
-        {Array.from({ length: chapterCount }).map((_, i) => (
-          <div key={i} onClick={() => setChapter(i+1)} style={{
-            padding:'6px 0', borderRadius: 6,
-            border: `1px solid ${chapter===i+1 ? C.accent : C.border}`,
-            background: chapter===i+1 ? C.accentSoft : 'transparent',
-            color: chapter===i+1 ? C.accent : C.text,
-            textAlign:'center', fontSize: 11, fontWeight: chapter===i+1 ? 700 : 500,
-            cursor:'pointer',
-          }}>{i+1}</div>
-        ))}
-      </div>
+    );
+  }
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap: 6 }}>
+      {renderBookSection(BOOKS_OT_FULL, 0, 'ВЕТХИЙ ЗАВЕТ · 39 КНИГ')}
+      {renderBookSection(BOOKS_NT_FULL, BOOKS_OT_FULL.length, 'НОВЫЙ ЗАВЕТ · 27 КНИГ')}
     </div>
   );
 }
 
 /* ============ Songs Tab ============ */
 function SongsTab({ C, songsList, activeSongId, activeSongBlocks, activeSongData, activeBlockIdx,
-  selectSong, sendSongTitle, sendSongBlock, openSongEditor, openNewSong }) {
+  selectSong, sendSongTitle, sendSongBlock, openSongEditor, openNewSong, addToQueue, songQueue }) {
   const [filter, setFilter] = useState('');
   const visible = filter
     ? songsList.filter(s => s.title.toLowerCase().includes(filter.toLowerCase()) || (s.firstLine||'').toLowerCase().includes(filter.toLowerCase()))
@@ -759,10 +1022,11 @@ function SongsTab({ C, songsList, activeSongId, activeSongBlocks, activeSongData
             style={{ flex:1, border:'none', background:'transparent', outline:'none', color:C.text, fontFamily:'Manrope', fontSize:12 }}
           />
         </div>
-        <button onClick={openNewSong} title="Новая песня" style={{
-          padding:'8px 10px', borderRadius: 8, border: `1px solid ${C.border}`,
-          background: C.cardBg, color: C.accent, cursor:'pointer', fontSize: 16, lineHeight: 1,
-        }}>+</button>
+        <button onClick={openNewSong} title="Добавить новую песню" style={{
+          padding:'8px 12px', borderRadius: 8, border: `1px solid ${C.accent}`,
+          background: C.accentSoft, color: C.accent, cursor:'pointer',
+          fontSize: 12, fontWeight: 700, fontFamily:'Manrope', whiteSpace:'nowrap',
+        }}>+ Добавить</button>
       </div>
       {songsList.length === 0 && (
         <div style={{ fontSize:12, color:C.textMute, padding:'8px 0' }}>Загрузка песен...</div>
@@ -783,18 +1047,25 @@ function SongsTab({ C, songsList, activeSongId, activeSongBlocks, activeSongData
               )}
             </div>
             {activeSongId === song.id && (
-              <>
-                <button onClick={e => { e.stopPropagation(); sendSongTitle(); }} style={{
-                  padding:'4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor:'pointer',
-                  background: C.accent, color: C.primaryText, border:'none', flexShrink: 0,
-                }}>Заставка</button>
-                <button onClick={e => { e.stopPropagation(); openSongEditor(song.id); }} title="Редактировать песню" style={{
-                  padding:'4px 8px', borderRadius: 6, fontSize: 12, cursor:'pointer',
-                  background: 'transparent', color: C.textMute, border: `1px solid ${C.border}`,
-                  flexShrink: 0, lineHeight: 1,
-                }}>✎</button>
-              </>
+              <button onClick={e => { e.stopPropagation(); openSongEditor(song.id); }} title="Редактировать" style={{
+                padding:'4px 7px', borderRadius: 6, fontSize: 12, cursor:'pointer',
+                background: 'transparent', color: C.textMute, border: `1px solid ${C.border}`,
+                flexShrink: 0, lineHeight: 1,
+              }}>✎</button>
             )}
+            {(() => {
+              const inQueue = songQueue.some(s => s.id === song.id);
+              return (
+                <button onClick={e => { e.stopPropagation(); addToQueue(song); }} title={inQueue ? 'Уже в очереди' : 'Добавить в очередь'} style={{
+                  width: 24, height: 24, borderRadius: 6, fontSize: 14, lineHeight: 1,
+                  background: inQueue ? C.accentSoft : 'transparent',
+                  color: inQueue ? C.accent : C.textMute,
+                  border: `1px solid ${inQueue ? C.accent : C.border}`,
+                  cursor: inQueue ? 'default' : 'pointer',
+                  flexShrink: 0, display:'grid', placeItems:'center',
+                }}>{inQueue ? '✓' : '+'}</button>
+              );
+            })()}
           </div>
           {activeSongId === song.id && activeSongBlocks.length > 0 && (
             <div style={{ borderTop: `1px solid ${C.border}`, padding: '6px 8px', display:'flex', flexDirection:'column', gap: 4 }}>
@@ -828,11 +1099,19 @@ function SongsTab({ C, songsList, activeSongId, activeSongBlocks, activeSongData
 
 /* ============ Main area ============ */
 function Main({ C, dark, state, template, setTemplate, bg, setBg, fontId, setFontId, fontSize, setFontSize,
-  content, setContent, screenOn, openTvScreen, closeTvScreen,
+  content, setContent, pushToScreen, screenOn, screenExternal, openTvScreen, closeTvScreen,
   tab, activeVerse, sendVerse, chapterVerses, chapterLoading, chapterTitle,
   chapter, setChapter, bookIdx, allBooks,
   activeSongData, activeSongBlocks, activeBlockIdx, sendSongBlock,
-  openSongEditor, clearScreen }) {
+  openSongEditor, clearScreen,
+  songQueue, queueIdx, removeFromQueue, selectQueueSong }) {
+
+  const showEditor = ['welcome','prayer','announce','song-title'].includes(template);
+
+  function handleContentChange(newContent) {
+    setContent(newContent);
+    pushToScreen(template, newContent);
+  }
 
   return (
     <main style={{ padding:'22px 28px', display:'flex', flexDirection:'column', gap: 18, minWidth: 0 }}>
@@ -849,9 +1128,13 @@ function Main({ C, dark, state, template, setTemplate, bg, setBg, fontId, setFon
                 background: screenOn ? C.live : '#999',
                 boxShadow: screenOn ? `0 0 8px ${C.live}` : 'none',
               }}/>
-              {screenOn ? 'ТВ-экран открыт · 1920×1080' : 'Экран не открыт'}
+              {screenOn
+                ? (screenExternal ? 'ТВ · внешний монитор ✓' : 'ТВ-экран открыт · 1920×1080')
+                : 'Экран не открыт'}
             </span>
-            <span>{tab === 'songs' ? '↑↓ — песни · ←→ — слайды' : '↑↓ — главы · ←→ — стихи'}</span>
+            <span>{tab === 'songs'
+              ? (songQueue.length > 0 ? '↑↓ — очередь · ←→ — слайды' : '↑↓ — песни · ←→ — слайды')
+              : '↑↓ — главы · ←→ — стихи'}</span>
           </div>
         </div>
         <div style={{ display:'flex', gap: 8 }}>
@@ -877,27 +1160,44 @@ function Main({ C, dark, state, template, setTemplate, bg, setBg, fontId, setFon
         <ScreenControls C={C} bg={bg} setBg={setBg} fontId={fontId} setFontId={setFontId} fontSize={fontSize} setFontSize={setFontSize}/>
       </div>
 
-      <ContextList
-        C={C} tab={tab} dark={dark}
-        activeVerse={activeVerse} sendVerse={sendVerse}
-        chapterVerses={chapterVerses} chapterLoading={chapterLoading} chapterTitle={chapterTitle}
-        chapter={chapter} setChapter={setChapter} bookIdx={bookIdx} allBooks={allBooks}
-        activeSongData={activeSongData} activeSongBlocks={activeSongBlocks}
-        activeBlockIdx={activeBlockIdx} sendSongBlock={sendSongBlock}
-        openSongEditor={openSongEditor}
-        template={template} content={content} setContent={setContent}
-      />
+      {showEditor ? (
+        <ContentEditor C={C} template={template} content={content} setContent={handleContentChange}/>
+      ) : tab === 'songs' ? (
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 280px', gap: 18 }}>
+          <SongBlocksPanel
+            C={C}
+            activeSongData={activeSongData}
+            activeSongBlocks={activeSongBlocks}
+            activeBlockIdx={activeBlockIdx}
+            sendSongBlock={sendSongBlock}
+            openSongEditor={openSongEditor}
+          />
+          <QueuePanel
+            C={C}
+            songQueue={songQueue}
+            queueIdx={queueIdx}
+            removeFromQueue={removeFromQueue}
+            selectQueueSong={selectQueueSong}
+          />
+        </div>
+      ) : (
+        <ContextList
+          C={C} tab={tab} dark={dark}
+          activeVerse={activeVerse} sendVerse={sendVerse}
+          chapterVerses={chapterVerses} chapterLoading={chapterLoading} chapterTitle={chapterTitle}
+          chapter={chapter} setChapter={setChapter} bookIdx={bookIdx} allBooks={allBooks}
+        />
+      )}
     </main>
   );
 }
 
 /* ============ Template picker ============ */
 function TemplatePicker({ C, template, setTemplate, tab }) {
-  const songIds    = ['song-title', 'song-verse', 'chorus'];
   const bibleIds   = ['verse', 'bilingual'];
-  const serviceIds = ['welcome', 'prayer', 'announce', 'logo'];
+  const serviceIds = ['welcome', 'prayer', 'announce'];
   const contextIds = tab === 'songs'
-    ? [...songIds, ...serviceIds]
+    ? serviceIds
     : [...bibleIds, ...serviceIds];
   const visible = TEMPLATES
     .filter(t => contextIds.includes(t.id))
@@ -1029,54 +1329,125 @@ function ScreenControls({ C, bg, setBg, fontId, setFontId, fontSize, setFontSize
   );
 }
 
-/* ============ Context list — verses / song / editor ============ */
-function ContextList({ C, tab, dark,
-  activeVerse, sendVerse, chapterVerses, chapterLoading, chapterTitle,
-  chapter, setChapter, bookIdx, allBooks,
-  activeSongData, activeSongBlocks, activeBlockIdx, sendSongBlock,
-  openSongEditor, template, content, setContent }) {
-
-  if (['welcome','prayer','announce','logo','song-title'].includes(template)) {
-    return <ContentEditor C={C} template={template} content={content} setContent={setContent}/>;
-  }
-
-  if (tab === 'songs' && activeSongData) {
+/* ============ Song blocks panel (main area, songs tab) ============ */
+function SongBlocksPanel({ C, activeSongData, activeSongBlocks, activeBlockIdx, sendSongBlock, openSongEditor }) {
+  if (!activeSongData) {
     return (
-      <div style={{ background: C.panelBg, borderRadius: 14, border: `1px solid ${C.border}`, overflow:'hidden', minHeight: 280 }}>
-        <div style={{ padding:'14px 20px', borderBottom: `1px solid ${C.border}`, display:'flex', alignItems:'center', gap: 14 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily:'Cormorant Garamond', fontSize: 20, fontWeight: 600 }}>{activeSongData.title}</div>
-            <div style={{ fontSize: 12, color: C.textMute, marginTop: 2 }}>
-              {activeSongBlocks.length} частей · кликните чтобы вывести на ТВ · ←→ клавиши
-            </div>
-          </div>
-          <button onClick={() => openSongEditor(activeSongData.id)} style={{
-            padding:'8px 14px', borderRadius: 8,
-            border: `1px solid ${C.border}`, background: C.cardBg,
-            color: C.text, fontFamily:'Manrope', fontSize: 12, fontWeight: 600, cursor:'pointer',
-            display:'flex', alignItems:'center', gap: 6,
-          }}>✎ Редактировать</button>
-        </div>
-        <div style={{ padding:'10px 14px', display:'flex', flexDirection:'column', gap: 6 }}>
-          {activeSongBlocks.map((b, idx) => (
-            <div key={idx} onClick={() => sendSongBlock(idx)} style={{
-              padding:'10px 14px', borderRadius: 10,
-              background: activeBlockIdx===idx ? C.accentSoft : C.cardBg,
-              border: `1px solid ${activeBlockIdx===idx ? C.accent : C.border}`,
-              cursor:'pointer', display:'flex', gap: 14,
-            }}>
-              <span style={{
-                fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform:'uppercase',
-                color: b.type==='chorus' ? C.accent : C.textMute,
-                minWidth: 70, paddingTop: 4,
-              }}>{b.type==='chorus' ? '✦ Припев' : `Куплет ${b.n}`}</span>
-              <div style={{ whiteSpace:'pre-line', fontSize: 14, lineHeight: 1.5, color: C.text }}>{b.text}</div>
-            </div>
-          ))}
-        </div>
+      <div style={{
+        background: C.panelBg, borderRadius: 14, border: `1px solid ${C.border}`,
+        display:'grid', placeItems:'center', minHeight: 200,
+      }}>
+        <div style={{ color: C.textMute, fontSize: 13 }}>Выберите песню из списка слева</div>
       </div>
     );
   }
+  return (
+    <div style={{ background: C.panelBg, borderRadius: 14, border: `1px solid ${C.border}`, overflow:'hidden', minHeight: 280 }}>
+      <div style={{ padding:'14px 20px', borderBottom: `1px solid ${C.border}`, display:'flex', alignItems:'center', gap: 14 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily:'Cormorant Garamond', fontSize: 20, fontWeight: 600 }}>{activeSongData.title}</div>
+          <div style={{ fontSize: 12, color: C.textMute, marginTop: 2 }}>
+            {activeSongBlocks.length} частей · кликните чтобы вывести на ТВ · ←→ клавиши
+          </div>
+        </div>
+        <button onClick={() => openSongEditor(activeSongData.id)} style={{
+          padding:'8px 14px', borderRadius: 8,
+          border: `1px solid ${C.border}`, background: C.cardBg,
+          color: C.text, fontFamily:'Manrope', fontSize: 12, fontWeight: 600, cursor:'pointer',
+          display:'flex', alignItems:'center', gap: 6,
+        }}>✎ Редактировать</button>
+      </div>
+      <div style={{ padding:'10px 14px', display:'flex', flexDirection:'column', gap: 6 }}>
+        {activeSongBlocks.map((b, idx) => (
+          <div key={idx} onClick={() => sendSongBlock(idx)} style={{
+            padding:'10px 14px', borderRadius: 10,
+            background: activeBlockIdx===idx ? C.accentSoft : C.cardBg,
+            border: `1px solid ${activeBlockIdx===idx ? C.accent : C.border}`,
+            cursor:'pointer', display:'flex', gap: 14,
+          }}>
+            <span style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform:'uppercase',
+              color: b.type==='chorus' ? C.accent : C.textMute,
+              minWidth: 70, paddingTop: 4,
+            }}>{b.type==='chorus' ? '✦ Припев' : `Куплет ${b.n}`}</span>
+            <div style={{ whiteSpace:'pre-line', fontSize: 14, lineHeight: 1.5, color: C.text }}>{b.text}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============ Queue panel ============ */
+function QueuePanel({ C, songQueue, queueIdx, removeFromQueue, selectQueueSong }) {
+  return (
+    <div style={{
+      background: C.panelBg, borderRadius: 14, border: `1px solid ${C.border}`,
+      display:'flex', flexDirection:'column', overflow:'hidden', minHeight: 200,
+    }}>
+      <div style={{ padding:'14px 16px', borderBottom: `1px solid ${C.border}`, display:'flex', alignItems:'center', gap: 10, flexShrink: 0 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: C.textSubtle, letterSpacing: 1, flex: 1 }}>ОЧЕРЕДЬ ПЕСЕН</div>
+        {songQueue.length > 0 && (
+          <div style={{
+            fontSize: 10, fontWeight: 700,
+            background: C.accent, color: '#FBF8F2',
+            borderRadius: 999, padding:'2px 7px', minWidth: 20, textAlign:'center',
+          }}>{songQueue.length}</div>
+        )}
+      </div>
+      {songQueue.length === 0 ? (
+        <div style={{ flex: 1, display:'grid', placeItems:'center', padding: 20 }}>
+          <div style={{ textAlign:'center' }}>
+            <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>♪</div>
+            <div style={{ fontSize: 12, color: C.textMute }}>Нажмите + рядом с песней</div>
+            <div style={{ fontSize: 11, color: C.textSubtle, marginTop: 4 }}>чтобы добавить в очередь</div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ flex: 1, overflow:'auto', padding:'8px 10px', display:'flex', flexDirection:'column', gap: 4 }}>
+          {songQueue.map((song, idx) => (
+            <div key={song.id} onClick={() => selectQueueSong(idx)} style={{
+              padding:'8px 10px', borderRadius: 8,
+              background: queueIdx === idx ? C.accentSoft : 'transparent',
+              border: `1px solid ${queueIdx === idx ? C.accent : C.border}`,
+              cursor:'pointer', display:'flex', alignItems:'center', gap: 8,
+            }}>
+              <span style={{
+                fontSize: 10, fontWeight: 700, color: queueIdx === idx ? C.accent : C.textMute,
+                minWidth: 16, textAlign:'center', flexShrink: 0,
+              }}>{idx + 1}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 12, fontWeight: queueIdx === idx ? 700 : 500,
+                  color: queueIdx === idx ? C.accent : C.text,
+                  overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+                }}>{song.title}</div>
+                {song.firstLine && (
+                  <div style={{ fontSize: 10, color: C.textMute, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{song.firstLine}</div>
+                )}
+              </div>
+              <button onClick={e => { e.stopPropagation(); removeFromQueue(idx); }} title="Убрать из очереди" style={{
+                width: 22, height: 22, borderRadius: 6, border: `1px solid ${C.border}`,
+                background: 'transparent', color: C.textMute, cursor:'pointer',
+                fontSize: 13, lineHeight: 1, flexShrink: 0, display:'grid', placeItems:'center',
+              }}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      {songQueue.length > 0 && (
+        <div style={{ padding:'8px 16px', borderTop: `1px solid ${C.border}`, fontSize: 10, color: C.textSubtle, textAlign:'center', flexShrink: 0 }}>
+          ↑↓ очередь · ←→ слайды
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============ Context list — verses ============ */
+function ContextList({ C, tab, dark,
+  activeVerse, sendVerse, chapterVerses, chapterLoading, chapterTitle,
+  chapter, setChapter, bookIdx, allBooks }) {
 
   // ── Verse list ──
   const currentBook = allBooks[bookIdx];
@@ -1088,9 +1459,7 @@ function ContextList({ C, tab, dark,
         <div>
           <div style={{ fontFamily:'Cormorant Garamond', fontSize: 20, fontWeight: 600 }}>{chapterTitle}</div>
           <div style={{ fontSize: 12, color: C.textMute, marginTop: 2 }}>
-            {chapterLoading ? 'Загрузка...' : template === 'bilingual'
-            ? `${chapterVerses.length} стихов · кликните → оба перевода на ТВ`
-            : `${chapterVerses.length} стихов · кликните по номеру → отправить на ТВ`}
+            {chapterLoading ? 'Загрузка...' : `${chapterVerses.length} стихов · кликните по номеру → отправить на ТВ`}
           </div>
         </div>
         <div style={{ display:'flex', gap: 6 }}>
@@ -1161,7 +1530,6 @@ function ContentEditor({ C, template, content, setContent }) {
     announce:     [['kicker','Подзаголовок'],['title','Заголовок'],['desc','Описание', true]],
     'song-title': [['title','Название'],['subtitle','Подзаголовок']],
     bilingual:    [['ref','Ссылка'],['lang1','Язык 1'],['text','Текст 1', true],['lang2','Язык 2'],['text2','Текст 2', true]],
-    logo:         [],
   };
   const fields = fieldMap[template] || [];
 
@@ -1170,7 +1538,7 @@ function ContentEditor({ C, template, content, setContent }) {
       <div>
         <div style={{ fontFamily:'Cormorant Garamond', fontSize: 20, fontWeight: 600 }}>Содержимое слайда</div>
         <div style={{ fontSize: 12, color: C.textMute, marginTop: 2 }}>
-          {template === 'logo' ? 'Чёрный экран с логотипом — без полей.' : 'Изменения видны в предпросмотре сразу.'}
+          Изменения сразу отображаются на экране.
         </div>
       </div>
       {fields.length > 0 && (

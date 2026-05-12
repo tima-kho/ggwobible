@@ -1,10 +1,10 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildSongsCatalogFromRawFiles } from './songs-catalog.js';
+import { buildSongsCatalogFromRawFiles } from '../utils/songs-catalog.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = resolve(__dirname, '..');
+const ROOT = resolve(__dirname, '../..');
 const DATA_DIR = resolve(ROOT, 'data');
 const CUSTOM_SONGS_PATH = join(DATA_DIR, 'songs.custom.json');
 const HIDDEN_SONGS_PATH = join(DATA_DIR, 'songs.hidden.json');

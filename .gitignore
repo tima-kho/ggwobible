@@ -6,3 +6,7 @@ node_modules/
 .cache/
 .tmp/
 scripts/__pycache__/
+
+# Frontend build artifacts
+public/bundle.js
+public/styles.css

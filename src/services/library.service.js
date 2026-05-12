@@ -13,10 +13,10 @@
 import { readFile } from 'node:fs/promises';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BOOKS, TRANSLATIONS } from './books-meta.js';
+import { BOOKS, TRANSLATIONS } from '../utils/books-meta.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = resolve(__dirname, '..', 'data');
+const DATA_DIR = resolve(__dirname, '../../data');
 
 /** translation -> Map<bookId, bookObject> */
 const cache = new Map();
@@ -75,20 +75,29 @@ export function getChapter(translation, id, n) {
   if (!book) return null;
   const chapter = book.chapters.find(c => c.number === Number(n));
   if (!chapter) return null;
+  const meta = BOOKS.find(b => b.id === Number(id));
   return {
     book: {
-      id: book.id, slug: book.slug, ru: book.ru, ruFull: book.ruFull,
-      en: book.en, abbr: book.abbr, testament: book.testament,
+      id: book.id, slug: book.slug,
+      ru: meta?.ru || book.ru,
+      ruFull: meta?.ruFull || book.ruFull,
+      en: meta?.en || book.en,
+      abbr: meta?.abbr || book.abbr,
+      testament: meta?.testament || book.testament,
       chaptersCount: book.chaptersCount
     },
     chapter: chapter.number,
-    verses: chapter.verses
+    verses: chapter.verses.map(v => ({ ...v, text: cleanText(v.text) }))
   };
 }
 
 /* ---------------------- Поиск ---------------------- */
 
 const REF_PATTERN = /^\s*([1-3]?\s*[\p{L}.-]+)\s*(\d+)(?::(\d+)(?:\s*-\s*(\d+))?)?\s*$/u;
+
+function cleanText(text) {
+  return text.replace(/<\/?[A-Za-z]>/g, '');
+}
 
 function indexBookLabel(book, translation) {
   if (translation === 'kyb' && book.ky) return book.ky;
@@ -154,7 +163,7 @@ export function search(translation, query, limit = 60) {
             chapter: ref.chapter,
             verse: v.number,
             ref: `${bl} ${ref.chapter}:${v.number}`,
-            text: v.text
+            text: cleanText(v.text)
           });
         }
       }
@@ -168,7 +177,7 @@ export function search(translation, query, limit = 60) {
           chapter: ref.chapter,
           verse: v.number,
           ref: `${bl} ${ref.chapter}:${v.number}`,
-          text: v.text
+          text: cleanText(v.text)
         });
       }
     }
@@ -192,7 +201,7 @@ export function search(translation, query, limit = 60) {
             chapter: ch.number,
             verse: v.number,
             ref: `${book.ru} ${ch.number}:${v.number}`,
-            text: v.text
+            text: cleanText(v.text)
           });
           if (items.length >= limit) break outer;
         }

@@ -1,11 +1,26 @@
 /* global React */
+import { SCREEN_BGS } from './AppData.jsx';
+
 const { useState: useStateS } = React;
+
+// Returns a font size that fits `text` within the given available area.
+// Uses a simple character-count heuristic (no DOM measurement needed).
+function fitFontSize(text, maxSize, availW, availH) {
+  const lineH = 1.3;
+  const charW = 0.5; // avg char-width ÷ font-size for proportional fonts
+  for (let f = maxSize; f >= 36; f -= 4) {
+    const charsPerLine = Math.max(1, Math.floor(availW / (f * charW)));
+    const lines = Math.ceil(text.length / charsPerLine);
+    if (lines * f * lineH <= availH) return f;
+  }
+  return 36;
+}
 
 /* ============ TV Screen — renders any template with dynamic content ============ */
 
 function TVScreen({ state, scale = 1 }) {
   const { template, bg, fontStack, fontSize, content } = state;
-  const bgObj = window.SCREEN_BGS.find(b => b.id === bg) || window.SCREEN_BGS[0];
+  const bgObj = SCREEN_BGS.find(b => b.id === bg) || SCREEN_BGS[0];
   const isLight = !!bgObj.light;
   const textColor = isLight ? '#1A140B' : '#FBF8F2';
   const accent = isLight ? '#8B5A2B' : '#C9A86B';
@@ -21,6 +36,11 @@ function TVScreen({ state, scale = 1 }) {
 
   // ============ TEMPLATE: verse ============
   if (template === 'verse') {
+    // When content was split by the app, use chosen fontSize directly.
+    // Otherwise fall back to fitFontSize as a safety net (e.g. legacy content).
+    const isSplit = content.totalParts != null;
+    const verseFontSize = isSplit ? fontSize : fitFontSize(content.text || '', fontSize, W * 0.78, 824);
+    const hasParts = isSplit && content.totalParts > 1;
     return (
       <div style={wrap}>
         <div style={{
@@ -32,14 +52,21 @@ function TVScreen({ state, scale = 1 }) {
             fontFamily:'Manrope', fontWeight: 600, color: accent, marginBottom: 56,
           }}>{content.ref}</div>
           <div style={{
-            fontSize: fontSize, fontWeight: 500, lineHeight: 1.3, textAlign:'center',
-            textWrap:'balance', maxWidth: '90%',
+            fontSize: verseFontSize, fontWeight: 500, lineHeight: 1.3, textAlign:'center',
+            maxWidth: '90%', whiteSpace: isSplit ? 'pre-line' : 'normal',
+            textWrap: isSplit ? undefined : 'balance',
           }}>{content.text}</div>
         </div>
         <div style={{
           position:'absolute', bottom: 40, right: 56,
           fontFamily:'Manrope', fontSize: 18, color: muted, letterSpacing: 2,
         }}>{content.translation}</div>
+        {hasParts && (
+          <div style={{
+            position:'absolute', bottom: 40, left: 56,
+            fontFamily:'Manrope', fontSize: 18, color: muted, letterSpacing: 2,
+          }}>{(content.partIdx || 0) + 1} / {content.totalParts}</div>
+        )}
       </div>
     );
   }
@@ -116,20 +143,15 @@ function TVScreen({ state, scale = 1 }) {
 
   // ============ TEMPLATE: song-verse ============
   if (template === 'song-verse') {
+    // 8% padding top/bottom → 908 px; verse-header ~64 px; bottom label ~56 px → ~788 px for text
+    const isSplit = content.totalParts != null;
+    const svFontSize = isSplit ? fontSize : fitFontSize(content.text || '', fontSize, W * 0.80, 788);
+    const hasParts = isSplit && content.totalParts > 1;
     return (
       <div style={{...wrap, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'8% 10%'}}>
         <div style={{
-          fontSize: 24, letterSpacing: 6, textTransform:'uppercase',
-          fontFamily:'Manrope', fontWeight: 600, color: accent, marginBottom: 40,
-          display:'flex', alignItems:'center', gap: 16,
-        }}>
-          <span style={{ width: 40, height: 1, background: accent }}/>
-          Куплет {content.partNum || 1}
-          <span style={{ width: 40, height: 1, background: accent }}/>
-        </div>
-        <div style={{
-          fontSize: fontSize, fontWeight: 400, lineHeight: 1.3, textAlign:'center',
-          textWrap:'balance', whiteSpace:'pre-line',
+          fontSize: svFontSize, fontWeight: 400, lineHeight: 1.3, textAlign:'center',
+          whiteSpace:'pre-line',
         }}>{content.text}</div>
         <div style={{
           position:'absolute', bottom: 40, left: 60,
@@ -145,6 +167,9 @@ function TVScreen({ state, scale = 1 }) {
 
   // ============ TEMPLATE: chorus ============
   if (template === 'chorus') {
+    const isSplit = content.totalParts != null;
+    const chorusFontSize = isSplit ? Math.min(110, fontSize * 1.4) : fitFontSize(content.text || '', Math.min(110, fontSize*1.4), W * 0.78, 860);
+    const hasParts = isSplit && content.totalParts > 1;
     return (
       <div style={{...wrap, display:'grid', gridTemplateColumns:'12px 1fr'}}>
         <div style={{ background: `linear-gradient(180deg, ${accent}, ${isLight ? '#8B5A2B' : '#8B5A2B'})` }}/>
@@ -155,10 +180,14 @@ function TVScreen({ state, scale = 1 }) {
           <div style={{
             fontFamily:'Manrope', fontSize: 22, fontWeight: 700,
             letterSpacing: 10, color: accent, marginBottom: 40,
-          }}>ПРИПЕВ</div>
+            display:'flex', alignItems:'center', gap: 16,
+          }}>
+            ПРИПЕВ
+            {hasParts && <span style={{ fontSize: 14, letterSpacing: 2, opacity: 0.7 }}>{(content.partIdx||0)+1}/{content.totalParts}</span>}
+          </div>
           <div style={{
-            fontSize: Math.min(110, fontSize*1.4), fontWeight: 500, lineHeight: 1.15,
-            textWrap:'balance', letterSpacing: -1, whiteSpace:'pre-line',
+            fontSize: chorusFontSize, fontWeight: 500, lineHeight: 1.15,
+            letterSpacing: -1, whiteSpace:'pre-line',
           }}>{content.text}</div>
         </div>
         <div style={{
@@ -297,4 +326,4 @@ function TVScreen({ state, scale = 1 }) {
   return <div style={wrap}/>;
 }
 
-window.TVScreen = TVScreen;
+export default TVScreen;

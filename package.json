@@ -11,11 +11,16 @@
     "build:data": "node scripts/build-data.js",
     "build:songs": "node scripts/build-songs.js",
     "export:kyb": "node scripts/build-data.js --kyb-only",
-    "start": "node server/server.js",
-    "dev": "node --watch server/server.js"
+    "build:frontend": "node scripts/build-frontend.js",
+    "dev:frontend": "node --watch scripts/build-frontend.js",
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
   },
   "dependencies": {
     "@fastify/static": "^7.0.4",
     "fastify": "^4.28.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.12"
   }
 }
