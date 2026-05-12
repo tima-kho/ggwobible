@@ -259,10 +259,10 @@ function TVScreen({ state, scale = 1 }) {
           color: isLight ? '#1A140B' : '#FBF8F2', background: isLight ? '#FBF8F2' : bgObj.bg,
         }}>
           {(content.rows || [
-            ['Дата','14 мая 2026, пт'],
-            ['Время','19:00 — 21:00'],
-            ['Место','Главный зал'],
-            ['Ведёт','Пастор Алексей'],
+            ['Дата',content.date],
+            ['Время',content.time],
+            ['Место',content.place],
+            ['Ведёт',content.speaker],
           ]).map(([l,v]) => (
             <div key={l} style={{ borderBottom: `1px solid ${isLight ? '#EDE4D2' : 'rgba(255,255,255,0.1)'}`, paddingBottom: 18 }}>
               <div style={{ fontSize: 14, letterSpacing: 3, textTransform:'uppercase', color: muted, fontWeight: 600, marginBottom: 6, fontFamily:'Manrope' }}>{l}</div>

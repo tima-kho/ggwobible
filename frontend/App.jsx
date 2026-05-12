@@ -1,5 +1,6 @@
 /* global React, ReactDOM */
 import { BOOKS_OT_FULL, BOOKS_NT_FULL, SCREEN_BGS, TEMPLATES, FONTS_SCREEN } from './components/AppData.jsx';
+import { verseTextAvailDimensions } from './screenMetrics.js';
 import TVScreen from './components/TVScreen.jsx';
 const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
@@ -30,17 +31,17 @@ function readScreenState() {
  * Returns an array of strings; length=1 means no split needed.
  */
 function splitTextForScreen(text, fontSize, availW, availH) {
-  const charW = 0.5;
+  const charW = 0.52;
   const lineH = 1.3;
   const charsPerLine = Math.max(1, Math.floor(availW / (fontSize * charW)));
-  const linesPerPage = Math.max(1, Math.floor(availH / (fontSize * lineH)));
+  const linesPerPage = Math.max(1, Math.floor((availH / (fontSize * lineH)) * 0.9));
 
   // Word-wrap: convert text into rendered lines (respecting existing \n)
   const allLines = [];
   for (const para of (text || '').split('\n')) {
     if (!para.trim()) { allLines.push(''); continue; }
     let cur = '';
-    for (const word of para.split(' ').filter(Boolean)) {
+    for (const word of para.split(/\s+/).filter(Boolean)) {
       const next = cur ? `${cur} ${word}` : word;
       if (next.length > charsPerLine && cur) { allLines.push(cur); cur = word; }
       else cur = next;
@@ -57,9 +58,7 @@ function splitTextForScreen(text, fontSize, availW, availH) {
   return parts.length ? parts : [text];
 }
 
-// Screen geometry constants (must match TVScreen padding in tv-screen.jsx)
-const VERSE_AVAIL_W = 1920 * 0.78;  // verse template: padding 12% each side
-const VERSE_AVAIL_H = 824;           // 1080 - 8%*2 - ref label
+const { availW: VERSE_AVAIL_W, availH: VERSE_AVAIL_H } = verseTextAvailDimensions();
 const SONG_AVAIL_W  = 1920 * 0.80;  // song-verse: padding 10% each side
 const SONG_AVAIL_H  = 788;           // 1080 - 8%*2 - header - footer
 
@@ -108,14 +107,38 @@ function parseSongBlocks(lyrics) {
 
 /* ============ Default slide content ============ */
 function defaultContent(template) {
-  const kyVerse = 'Анткени Кудай адамдарды ушунчалык сүйгөндүктөн, ишенген ар бир адам өлбөстөн, түбөлүк өмүргө ээ болсун деп, Өзүнүн жалгыз Уулун берди.';
   switch (template) {
-    case 'welcome':    return { kicker:'Воскресное служение', title:'Кош келиңиз', subtitle:'Добро пожаловать', date:'11 мая 2026' };
+    case 'welcome':    return { kicker:'Воскресное служение', title:'Кош келиңиз', subtitle:'Добро пожаловать', date:new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) };
     case 'prayer':     return { text:'«Атабыз, асмандагы Атабыз,\nСенин ысмың ыйыкталсын,\nСенин Падышачылыгың келсин.»', ref:'Матай 6:9' };
-    case 'announce':   return { kicker:'Объявление · Воскресенье', title:'Молитвенное собрание', desc:'Приглашаем всех на совместную молитву и пост в эту пятницу в 19:00.' };
+    case 'announce':   return { kicker:'Объявление · Воскресенье', title:'Молитвенное собрание', desc:'Приглашаем всех на совместную молитву и пост в эту пятницу в 18:00.', date:new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }), time:'18:00 — 21:00', place:'Малый зал', speaker:'Пастор Эмиль' };
     case 'logo':       return {};
     default:           return {};
   }
+}
+
+const PERSISTED_SERVICE_TEMPLATES = ['welcome', 'prayer', 'announce'];
+
+function serviceSlideStorageKey(t) {
+  return `presenter-slide-${t}`;
+}
+
+function loadPersistedSlideContent(template) {
+  if (!PERSISTED_SERVICE_TEMPLATES.includes(template)) return null;
+  try {
+    const raw = localStorage.getItem(serviceSlideStorageKey(template));
+    if (raw == null || raw === '') return null;
+    const o = JSON.parse(raw);
+    return o && typeof o === 'object' && !Array.isArray(o) ? o : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistSlideContent(template, data) {
+  if (!PERSISTED_SERVICE_TEMPLATES.includes(template)) return;
+  try {
+    localStorage.setItem(serviceSlideStorageKey(template), JSON.stringify(data));
+  } catch { /* quota / private mode */ }
 }
 
 /* ============ Theme tokens ============ */
@@ -183,6 +206,13 @@ function App() {
   const [screenOn, setScreenOn] = useState(false);
   const [screenExternal, setScreenExternal] = useState(false);
   const screenWindowRef = useRef(null);
+  const chapterNavRef = useRef({ bookIdx: null, chapter: null });
+  /** In-memory cache for the open chapter: instant translation switches without waiting for fetch. */
+  const chapterBlobRef = useRef({ serverId: null, chapter: null, byTrans: {} });
+  const activeVerseRef = useRef(null);
+  const templateRef = useRef('verse');
+  activeVerseRef.current = activeVerse;
+  templateRef.current = template;
 
   const C = tokens(dark);
   const fontStack = (FONTS_SCREEN.find(f => f.id === fontId) || FONTS_SCREEN[0]).stack;
@@ -192,19 +222,93 @@ function App() {
     const book = allBooks[bookIdx];
     if (!book) return;
     const serverId = book[3];
-    setChapterLoading(true);
-    setChapterVerses([]);
-    setActiveVerse(null);
-    fetch(`/api/books/${serverId}/chapters/${chapter}?translation=${translation}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data) {
-          setChapterVerses(data.verses || []);
-          setChapterBookMeta(data.book || null);
+    const prevNav = chapterNavRef.current;
+    const navigationChanged =
+      prevNav.bookIdx !== bookIdx || prevNav.chapter !== chapter;
+    const versePin = navigationChanged ? null : activeVerseRef.current;
+    const templatePin = navigationChanged ? null : templateRef.current;
+    const translationOnly = !navigationChanged;
+
+    if (navigationChanged) {
+      setActiveVerse(null);
+      chapterBlobRef.current = { serverId, chapter, byTrans: {} };
+    }
+
+    // Same book/chapter: if this translation is already cached (e.g. prefetched), update UI + projector immediately.
+    if (translationOnly) {
+      const blob = chapterBlobRef.current;
+      if (blob.serverId === serverId && blob.chapter === chapter) {
+        const hit = blob.byTrans[translation];
+        if (hit?.verses?.length) {
+          setChapterVerses(hit.verses);
+          setChapterBookMeta(hit.book);
+          setChapterLoading(false);
+          if (versePin != null && (templatePin === 'verse' || templatePin === 'bilingual')) {
+            const v = hit.verses.find(x => x.number === versePin);
+            if (v && hit.book) {
+              if (templatePin === 'bilingual') sendBilingualVerse(versePin, v.text, hit.book);
+              else sendVerse(versePin, v.text, hit.book);
+            }
+          }
+          return undefined;
         }
+      }
+    }
+
+    if (navigationChanged) {
+      setChapterVerses([]);
+    }
+    setChapterLoading(true);
+
+    const ac = new AbortController();
+    fetch(`/api/books/${serverId}/chapters/${chapter}?translation=${translation}`, { signal: ac.signal })
+      .then(r => (ac.signal.aborted ? null : r.ok ? r.json() : null))
+      .then(data => {
+        if (ac.signal.aborted) return;
+        if (!data) {
+          setChapterLoading(false);
+          return;
+        }
+        const verses = data.verses || [];
+        const bookMeta = data.book || null;
+        const blob = chapterBlobRef.current;
+        if (blob.serverId === serverId && blob.chapter === chapter) {
+          blob.byTrans[translation] = { verses, book: bookMeta };
+          ['kyb', 'rst', 'kjv'].filter(t => t !== translation).forEach(t => {
+            if (blob.byTrans[t]) return;
+            fetch(`/api/books/${serverId}/chapters/${chapter}?translation=${t}`)
+              .then(r => (r.ok ? r.json() : null))
+              .then(d => {
+                if (!d?.verses) return;
+                const cur = chapterBlobRef.current;
+                if (cur.serverId !== serverId || cur.chapter !== chapter || cur.byTrans[t]) return;
+                cur.byTrans[t] = { verses: d.verses || [], book: d.book || null };
+              })
+              .catch(() => {});
+          });
+        }
+        setChapterVerses(verses);
+        setChapterBookMeta(bookMeta);
+        chapterNavRef.current = { bookIdx, chapter };
         setChapterLoading(false);
+
+        if (versePin != null && (templatePin === 'verse' || templatePin === 'bilingual')) {
+          const v = verses.find(x => x.number === versePin);
+          if (v && bookMeta) {
+            if (templatePin === 'bilingual') {
+              sendBilingualVerse(versePin, v.text, bookMeta);
+            } else {
+              sendVerse(versePin, v.text, bookMeta);
+            }
+          }
+        }
       })
-      .catch(() => setChapterLoading(false));
+      .catch(err => {
+        if (err.name === 'AbortError') return;
+        setChapterLoading(false);
+      });
+
+    return () => ac.abort();
   }, [bookIdx, chapter, translation]);
 
   // ── Load songs from API ────────────────────────────────────────────
@@ -232,13 +336,20 @@ function App() {
   // (used when switching verse↔bilingual while a verse is already active).
   const skipContentResetRef = useRef(false);
 
-  // ── When template changes reset content ───────────────────────────
+  // ── When template changes, seed defaults only for service/editor slides.
+  //    Verse, bilingual, songs, chorus, logo are driven by explicit actions;
+  //    resetting here caused flashes (empty bilingual → placeholder Russian, etc.).
   useEffect(() => {
     if (skipContentResetRef.current) {
       skipContentResetRef.current = false;
       return;
     }
-    setContent(defaultContent(template));
+    if (PERSISTED_SERVICE_TEMPLATES.includes(template)) {
+      const saved = loadPersistedSlideContent(template);
+      const next = saved != null ? saved : defaultContent(template);
+      setContent(next);
+      pushToScreen(template, next);
+    }
   }, [template]);
 
   // ── Track if TV window was closed ─────────────────────────────────
@@ -266,16 +377,17 @@ function App() {
   const BILINGUAL_PAIR = { kyb: 'rst', rst: 'kyb', kjv: 'rst' };
 
   // ── ACTIONS ────────────────────────────────────────────────────────
-  function sendVerse(verseNum, text) {
+  function sendVerse(verseNum, text, bookMetaOverride) {
+    const meta = bookMetaOverride ?? chapterBookMeta;
     if (template === 'bilingual') {
-      sendBilingualVerse(verseNum, text);
+      sendBilingualVerse(verseNum, text, meta);
       return;
     }
     const parts = splitTextForScreen(text, fontSize, VERSE_AVAIL_W, VERSE_AVAIL_H);
     setActiveVerse(verseNum);
     setVerseParts(parts);
     setVersePartIdx(0);
-    const ref = `${bookLabel(chapterBookMeta)} ${chapter}:${verseNum}`;
+    const ref = `${bookLabel(meta)} ${chapter}:${verseNum}`;
     const newContent = {
       ref,
       text: parts[0],
@@ -304,16 +416,17 @@ function App() {
     pushToScreen('verse', newContent);
   }
 
-  async function sendBilingualVerse(verseNum, text) {
+  async function sendBilingualVerse(verseNum, text, bookMetaOverride) {
     const book = allBooks[bookIdx];
     if (!book) return;
-    const ruName = book[4] || chapterBookMeta?.ru || bookLabel(chapterBookMeta);
+    const bookMeta = bookMetaOverride ?? chapterBookMeta;
+    const ruName = book[4] || bookMeta?.ru || bookLabel(bookMeta);
     const ref = `${ruName} ${chapter}:${verseNum}`;
     const trans2 = BILINGUAL_PAIR[translation] || 'rst';
     const lang1 = TRANS_LABEL[translation] || translation;
     const lang2 = TRANS_LABEL[trans2] || trans2;
     setActiveVerse(verseNum);
-    const interim = { ref, text, lang1, text2: '…', lang2 };
+    const interim = { ref, text, lang1, text2: '', lang2 };
     setContent(interim);
     pushToScreen('bilingual', interim);
     try {
@@ -437,11 +550,11 @@ function App() {
     }
     const serviceSet = ['welcome', 'prayer', 'announce'];
     if (serviceSet.includes(newTemplate)) {
-      const defaults = defaultContent(newTemplate);
+      const next = loadPersistedSlideContent(newTemplate) ?? defaultContent(newTemplate);
       skipContentResetRef.current = true;
       setTemplate(newTemplate);
-      setContent(defaults);
-      pushToScreen(newTemplate, defaults);
+      setContent(next);
+      pushToScreen(newTemplate, next);
       return;
     }
     setTemplate(newTemplate);
@@ -1111,6 +1224,9 @@ function Main({ C, dark, state, template, setTemplate, bg, setBg, fontId, setFon
   function handleContentChange(newContent) {
     setContent(newContent);
     pushToScreen(template, newContent);
+    if (PERSISTED_SERVICE_TEMPLATES.includes(template)) {
+      persistSlideContent(template, newContent);
+    }
   }
 
   return (
@@ -1550,7 +1666,7 @@ function ContentEditor({ C, template, content, setContent }) {
         <div style={{ marginTop: 6 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: C.textSubtle, letterSpacing: 1, marginBottom: 6 }}>СТРОКИ (Метка : Значение)</div>
           <textarea
-            value={(content.rows || [['Дата','14 мая 2026, пт'],['Время','19:00 — 21:00'],['Место','Главный зал'],['Ведёт','Пастор Алексей']]).map(r => r.join(' : ')).join('\n')}
+            value={(content.rows || [['Дата',content.date],['Время',content.time],['Место',content.place],['Ведёт',content.speaker]]).map(r => r.join(' : ')).join('\n')}
             onChange={e => setContent({ ...content, rows: e.target.value.split('\n').map(l => {
               const idx = l.indexOf(' : ');
               return idx >= 0 ? [l.slice(0, idx), l.slice(idx + 3)] : [l, ''];

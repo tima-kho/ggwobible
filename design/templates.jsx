@@ -183,10 +183,10 @@ function TplAnnouncement() {
         padding: '8% 6%', display:'flex', flexDirection:'column', justifyContent:'center', gap: 28,
       }}>
         {[
-          { l:'Дата',  v:'14 мая 2026, пт' },
-          { l:'Время', v:'19:00 — 21:00' },
-          { l:'Место', v:'Главный зал' },
-          { l:'Ведёт', v:'Пастор Алексей' },
+          { l:'Дата',  v:content.date },
+          { l:'Время', v:content.time },
+          { l:'Место', v:content.place },
+          { l:'Ведёт', v:content.speaker },
         ].map(r => (
           <div key={r.l} style={{ borderBottom: '1px solid #EDE4D2', paddingBottom: 20 }}>
             <div style={{ fontSize: 16, letterSpacing: 3, textTransform:'uppercase', color: '#8E7B62', fontWeight: 600, marginBottom: 8 }}>{r.l}</div>

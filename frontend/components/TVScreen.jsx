@@ -1,5 +1,6 @@
 /* global React */
 import { SCREEN_BGS } from './AppData.jsx';
+import { verseTextAvailDimensions, fitFontSizeForWrappedText } from '../screenMetrics.js';
 
 const { useState: useStateS } = React;
 
@@ -7,13 +8,13 @@ const { useState: useStateS } = React;
 // Uses a simple character-count heuristic (no DOM measurement needed).
 function fitFontSize(text, maxSize, availW, availH) {
   const lineH = 1.3;
-  const charW = 0.5; // avg char-width ÷ font-size for proportional fonts
-  for (let f = maxSize; f >= 36; f -= 4) {
+  const charW = 0.52;
+  for (let f = maxSize; f >= 24; f -= 2) {
     const charsPerLine = Math.max(1, Math.floor(availW / (f * charW)));
-    const lines = Math.ceil(text.length / charsPerLine);
+    const lines = Math.ceil((text || '').length / charsPerLine);
     if (lines * f * lineH <= availH) return f;
   }
-  return 36;
+  return 24;
 }
 
 /* ============ TV Screen — renders any template with dynamic content ============ */
@@ -36,11 +37,9 @@ function TVScreen({ state, scale = 1 }) {
 
   // ============ TEMPLATE: verse ============
   if (template === 'verse') {
-    // When content was split by the app, use chosen fontSize directly.
-    // Otherwise fall back to fitFontSize as a safety net (e.g. legacy content).
-    const isSplit = content.totalParts != null;
-    const verseFontSize = isSplit ? fontSize : fitFontSize(content.text || '', fontSize, W * 0.78, 824);
-    const hasParts = isSplit && content.totalParts > 1;
+    const { availW: vW, availH: vH } = verseTextAvailDimensions();
+    const verseFontSize = fitFontSizeForWrappedText(content.text || '', fontSize, vW, vH);
+    const hasParts = content.totalParts != null && content.totalParts > 1;
     return (
       <div style={wrap}>
         <div style={{
@@ -53,8 +52,8 @@ function TVScreen({ state, scale = 1 }) {
           }}>{content.ref}</div>
           <div style={{
             fontSize: verseFontSize, fontWeight: 500, lineHeight: 1.3, textAlign:'center',
-            maxWidth: '90%', whiteSpace: isSplit ? 'pre-line' : 'normal',
-            textWrap: isSplit ? undefined : 'balance',
+            maxWidth: '90%', whiteSpace: hasParts ? 'pre-line' : 'normal',
+            textWrap: hasParts ? undefined : 'balance',
           }}>{content.text}</div>
         </div>
         <div style={{
@@ -76,8 +75,8 @@ function TVScreen({ state, scale = 1 }) {
     return (
       <div style={{...wrap, display:'grid', gridTemplateColumns:'1fr 1px 1fr'}}>
         {[
-          { lang: content.lang1 || 'КРГ · Кыргызча', text: content.text },
-          { lang: content.lang2 || 'РСТ · Русский',  text: content.text2 || 'Ибо так возлюбил Бог мир, что отдал Сына Своего Единородного, дабы всякий верующий в Него, не погиб, но имел жизнь вечную.' },
+          { lang: content.lang1 || 'КРГ · Кыргызча', text: content.text ?? '' },
+          { lang: content.lang2 || 'РСТ · Русский',  text: content.text2 ?? '' },
         ].map((col, i) => (
           <React.Fragment key={i}>
             {i===1 && <div style={{ background:`linear-gradient(180deg, transparent, ${accent}55, transparent)`, height:'100%' }}/>}
@@ -118,10 +117,12 @@ function TVScreen({ state, scale = 1 }) {
           </svg>
           <div style={{ width: 100, height: 1, background: accent }}/>
         </div>
-        <div style={{
-          fontSize: 26, letterSpacing: 12, textTransform:'uppercase',
-          fontFamily:'Manrope', fontWeight: 500, color: accent, marginBottom: 28,
-        }}>песня № {content.songNum || 47}</div>
+        {content.songNum != null && (
+          <div style={{
+            fontSize: 26, letterSpacing: 12, textTransform:'uppercase',
+            fontFamily:'Manrope', fontWeight: 500, color: accent, marginBottom: 28,
+          }}>песня № {content.songNum}</div>
+        )}
         <div style={{
           fontSize: Math.min(180, fontSize*2.3), fontWeight: 500, lineHeight: 1, textAlign:'center',
           letterSpacing: -2, fontStyle:'italic',
@@ -153,14 +154,18 @@ function TVScreen({ state, scale = 1 }) {
           fontSize: svFontSize, fontWeight: 400, lineHeight: 1.3, textAlign:'center',
           whiteSpace:'pre-line',
         }}>{content.text}</div>
+        {content.songTitle != null && content.songTitle !== '' && (
         <div style={{
           position:'absolute', bottom: 40, left: 60,
           fontFamily:'Manrope', fontSize: 16, color: muted, letterSpacing: 1,
         }}>{content.songTitle}</div>
+        )}
+        {content.position != null && content.position !== '' && (
         <div style={{
           position:'absolute', bottom: 40, right: 60,
           fontFamily:'Manrope', fontSize: 16, color: muted, letterSpacing: 1,
-        }}>{content.position || '1 / 3'}</div>
+        }}>{content.position}</div>
+        )}
       </div>
     );
   }
@@ -190,11 +195,13 @@ function TVScreen({ state, scale = 1 }) {
             letterSpacing: -1, whiteSpace:'pre-line',
           }}>{content.text}</div>
         </div>
+        {content.songTitle != null && content.songTitle !== '' && (
         <div style={{
           position:'absolute', bottom: 48, right: 60,
           fontFamily:'Manrope', fontSize: 14, color: muted,
           letterSpacing: 3, textTransform:'uppercase',
-        }}>{content.songTitle || 'Великая Благодать'}</div>
+        }}>{content.songTitle}</div>
+        )}
       </div>
     );
   }
@@ -289,9 +296,9 @@ function TVScreen({ state, scale = 1 }) {
         }}>
           {(content.rows || [
             ['Дата','14 мая 2026, пт'],
-            ['Время','19:00 — 21:00'],
-            ['Место','Главный зал'],
-            ['Ведёт','Пастор Алексей'],
+            ['Время',content.time],
+            ['Место',content.place],
+            ['Ведёт', content.speaker],
           ]).map(([l,v]) => (
             <div key={l} style={{ borderBottom: `1px solid ${isLight ? '#EDE4D2' : 'rgba(255,255,255,0.1)'}`, paddingBottom: 18 }}>
               <div style={{ fontSize: 14, letterSpacing: 3, textTransform:'uppercase', color: muted, fontWeight: 600, marginBottom: 6, fontFamily:'Manrope' }}>{l}</div>

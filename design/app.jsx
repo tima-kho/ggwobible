@@ -686,7 +686,7 @@ function ContentEditor({ C, template, content, setContent }) {
         <div style={{ marginTop: 6 }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: C.textSubtle, letterSpacing: 1, marginBottom: 6 }}>СТРОКИ (label : значение)</div>
           <textarea
-            value={(content.rows || [['Дата','14 мая 2026, пт'],['Время','19:00 — 21:00'],['Место','Главный зал'],['Ведёт','Пастор Алексей']]).map(r => r.join(' : ')).join('\n')}
+            value={(content.rows || [['Дата','14 мая 2026, пт'],['Время','19:00 — 21:00'],['Место','Главный зал'],['Ведёт','Пастор Эмиль']]).map(r => r.join(' : ')).join('\n')}
             onChange={e => setContent({ ...content, rows: e.target.value.split('\n').map(l => l.split(' : ')) })}
             rows={5}
             style={{
