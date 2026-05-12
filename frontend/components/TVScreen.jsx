@@ -1,6 +1,6 @@
 /* global React */
 import { SCREEN_BGS } from './AppData.jsx';
-import { verseTextAvailDimensions, fitFontSizeForWrappedText } from '../screenMetrics.js';
+import { verseTextAvailDimensions, bilingualColumnTextAvailDimensions, fitFontSizeForWrappedText } from '../screenMetrics.js';
 
 const { useState: useStateS } = React;
 
@@ -72,11 +72,15 @@ function TVScreen({ state, scale = 1 }) {
 
   // ============ TEMPLATE: bilingual ============
   if (template === 'bilingual') {
+    const { availW: bW, availH: bH, bodyFontSize: bFs } = bilingualColumnTextAvailDimensions(fontSize);
+    const hasParts = content.totalParts != null && content.totalParts > 1;
+    const colFontLeft = fitFontSizeForWrappedText(content.text || '', bFs, bW, bH);
+    const colFontRight = fitFontSizeForWrappedText(content.text2 || '', bFs, bW, bH);
     return (
       <div style={{...wrap, display:'grid', gridTemplateColumns:'1fr 1px 1fr'}}>
         {[
-          { lang: content.lang1 || 'КРГ · Кыргызча', text: content.text ?? '' },
-          { lang: content.lang2 || 'РСТ · Русский',  text: content.text2 ?? '' },
+          { lang: content.lang1 || 'КРГ · Кыргызча', text: content.text ?? '', f: colFontLeft },
+          { lang: content.lang2 || 'РСТ · Русский',  text: content.text2 ?? '', f: colFontRight },
         ].map((col, i) => (
           <React.Fragment key={i}>
             {i===1 && <div style={{ background:`linear-gradient(180deg, transparent, ${accent}55, transparent)`, height:'100%' }}/>}
@@ -88,7 +92,9 @@ function TVScreen({ state, scale = 1 }) {
                 color: accent, fontWeight: 600, marginBottom: 28,
               }}>{col.lang}</div>
               <div style={{
-                fontSize: Math.round(fontSize*0.62), fontWeight: 400, lineHeight: 1.35, textWrap:'balance',
+                fontSize: col.f, fontWeight: 400, lineHeight: 1.35,
+                whiteSpace: hasParts ? 'pre-line' : 'normal',
+                textWrap: hasParts ? undefined : 'balance',
               }}>{col.text}</div>
             </div>
           </React.Fragment>
@@ -98,6 +104,12 @@ function TVScreen({ state, scale = 1 }) {
           fontFamily:'Manrope', fontSize: 16, letterSpacing: 8,
           textTransform:'uppercase', color: accent, fontWeight: 700,
         }}>{content.ref}</div>
+        {hasParts && (
+          <div style={{
+            position:'absolute', bottom: 40, left: 56,
+            fontFamily:'Manrope', fontSize: 18, color: muted, letterSpacing: 2,
+          }}>{(content.partIdx || 0) + 1} / {content.totalParts}</div>
+        )}
       </div>
     );
   }

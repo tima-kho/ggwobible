@@ -1,6 +1,6 @@
 /* global React, ReactDOM */
 import { BOOKS_OT_FULL, BOOKS_NT_FULL, SCREEN_BGS, TEMPLATES, FONTS_SCREEN } from './components/AppData.jsx';
-import { verseTextAvailDimensions } from './screenMetrics.js';
+import { verseTextAvailDimensions, bilingualColumnTextAvailDimensions, estimateWrapLines } from './screenMetrics.js';
 import TVScreen from './components/TVScreen.jsx';
 const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
@@ -56,6 +56,97 @@ function splitTextForScreen(text, fontSize, availW, availH) {
     parts.push(allLines.slice(i, i + linesPerPage).join('\n').trim());
   }
   return parts.length ? parts : [text];
+}
+
+/** Grow part count by splitting the chunk with the most wrapped lines (same model as splitTextForScreen). */
+function expandSplitPartsToCount(parts, fontSize, availW, availH, targetCount) {
+  if (parts.length >= targetCount) return parts;
+  const res = [...parts];
+  let guard = 0;
+  while (res.length < targetCount && guard++ < 120) {
+    let bestIdx = 0;
+    let bestLines = -1;
+    for (let i = 0; i < res.length; i++) {
+      const ln = estimateWrapLines(res[i], fontSize, availW);
+      if (ln > bestLines) {
+        bestLines = ln;
+        bestIdx = i;
+      }
+    }
+    const piece = res[bestIdx];
+    let sub = [piece];
+    for (let frac = 0.88; frac >= 0.2; frac -= 0.05) {
+      sub = splitTextForScreen(piece, fontSize, availW, availH * frac);
+      if (sub.length >= 2) break;
+    }
+    if (sub.length < 2) break;
+    res.splice(bestIdx, 1, ...sub);
+  }
+  return res;
+}
+
+/** Reduce part count by merging adjacent chunks that still fit one screen. */
+function shrinkSplitPartsToCount(parts, fontSize, availW, availH, targetCount) {
+  if (parts.length <= targetCount) return parts;
+  const res = [...parts];
+  let guard = 0;
+  while (res.length > targetCount && guard++ < 120) {
+    let bestJ = -1;
+    let bestLen = Infinity;
+    for (let j = 0; j < res.length - 1; j++) {
+      const merged = `${res[j]}\n\n${res[j + 1]}`.trim();
+      const sub = splitTextForScreen(merged, fontSize, availW, availH);
+      if (sub.length === 1 && merged.length < bestLen) {
+        bestLen = merged.length;
+        bestJ = j;
+      }
+    }
+    if (bestJ < 0) break;
+    const merged = `${res[bestJ]}\n\n${res[bestJ + 1]}`.trim();
+    res.splice(bestJ, 2, merged);
+  }
+  return res;
+}
+
+/** Same number of slides for both columns; target = max(natural parts). */
+function syncBilingualColumnParts(text1, text2, screenFontSize) {
+  const { availW, availH, bodyFontSize } = bilingualColumnTextAvailDimensions(screenFontSize);
+  const fs = bodyFontSize;
+  const t2 = String(text2 || '').trim();
+  if (!t2) {
+    const p1 = splitTextForScreen(text1 || '', fs, availW, availH);
+    return { parts1: p1, parts2: p1.map(() => ''), totalParts: Math.max(1, p1.length) };
+  }
+  let p1 = splitTextForScreen(text1 || '', fs, availW, availH);
+  let p2 = splitTextForScreen(t2, fs, availW, availH);
+  let T = Math.max(p1.length, p2.length);
+  for (let round = 0; round < 80; round++) {
+    p1 = expandSplitPartsToCount(p1, fs, availW, availH, T);
+    p2 = expandSplitPartsToCount(p2, fs, availW, availH, T);
+    while (p1.length > T) p1 = shrinkSplitPartsToCount(p1, fs, availW, availH, T);
+    while (p2.length > T) p2 = shrinkSplitPartsToCount(p2, fs, availW, availH, T);
+    if (p1.length === T && p2.length === T) break;
+    if (p1.length < T) p1 = expandSplitPartsToCount(p1, fs, availW, availH, T);
+    if (p2.length < T) p2 = expandSplitPartsToCount(p2, fs, availW, availH, T);
+    const over = Math.max(p1.length, p2.length);
+    if (over > T) T = over;
+    else if (p1.length < T && p2.length < T) break;
+  }
+  for (let fix = 0; fix < 80 && p1.length !== p2.length; fix++) {
+    if (p1.length > p2.length) {
+      const exp = expandSplitPartsToCount(p2, fs, availW, availH, p1.length);
+      if (exp.length > p2.length) p2 = exp;
+      else break;
+    } else {
+      const exp = expandSplitPartsToCount(p1, fs, availW, availH, p2.length);
+      if (exp.length > p1.length) p1 = exp;
+      else break;
+    }
+  }
+  while (p1.length < p2.length) p1.push('');
+  while (p2.length < p1.length) p2.push('');
+  const totalParts = Math.max(1, p1.length);
+  return { parts1: p1, parts2: p2, totalParts };
 }
 
 const { availW: VERSE_AVAIL_W, availH: VERSE_AVAIL_H } = verseTextAvailDimensions();
@@ -176,6 +267,8 @@ function App() {
   const [activeVerse, setActiveVerse] = useState(null);
   const [verseParts, setVerseParts] = useState([]);    // split parts of active verse
   const [versePartIdx, setVersePartIdx] = useState(0); // which part is on screen
+  /** Paired column chunks for bilingual template (same length). */
+  const [bilingualParts, setBilingualParts] = useState(null);
 
   // Songs from API
   const [songsList, setSongsList] = useState([]);
@@ -387,6 +480,7 @@ function App() {
     setActiveVerse(verseNum);
     setVerseParts(parts);
     setVersePartIdx(0);
+    setBilingualParts(null);
     const ref = `${bookLabel(meta)} ${chapter}:${verseNum}`;
     const newContent = {
       ref,
@@ -416,6 +510,32 @@ function App() {
     pushToScreen('verse', newContent);
   }
 
+  function sendCurrentBilingualPart(partIdx) {
+    if (!bilingualParts) return;
+    const { parts1, parts2 } = bilingualParts;
+    if (!parts1.length || partIdx < 0 || partIdx >= parts1.length) return;
+    setVersePartIdx(partIdx);
+    const book = allBooks[bookIdx];
+    if (!book) return;
+    const bookMeta = chapterBookMeta;
+    const ruName = book[4] || bookMeta?.ru || bookLabel(bookMeta);
+    const ref = `${ruName} ${chapter}:${activeVerse}`;
+    const trans2 = BILINGUAL_PAIR[translation] || 'rst';
+    const lang1 = TRANS_LABEL[translation] || translation;
+    const lang2 = TRANS_LABEL[trans2] || trans2;
+    const newContent = {
+      ref,
+      text: parts1[partIdx],
+      lang1,
+      text2: parts2[partIdx] ?? '',
+      lang2,
+      partIdx,
+      totalParts: parts1.length,
+    };
+    setContent(newContent);
+    pushToScreen('bilingual', newContent);
+  }
+
   async function sendBilingualVerse(verseNum, text, bookMetaOverride) {
     const book = allBooks[bookIdx];
     if (!book) return;
@@ -426,16 +546,41 @@ function App() {
     const lang1 = TRANS_LABEL[translation] || translation;
     const lang2 = TRANS_LABEL[trans2] || trans2;
     setActiveVerse(verseNum);
-    const interim = { ref, text, lang1, text2: '', lang2 };
+    setTemplate('bilingual');
+    const fsNow = fontSize;
+    let interimSync = syncBilingualColumnParts(text, '', fsNow);
+    setBilingualParts({ parts1: interimSync.parts1, parts2: interimSync.parts2 });
+    setVersePartIdx(0);
+    const interim = {
+      ref,
+      text: interimSync.parts1[0] ?? text,
+      lang1,
+      text2: interimSync.parts2[0] ?? '',
+      lang2,
+      partIdx: 0,
+      totalParts: interimSync.totalParts,
+    };
     setContent(interim);
     pushToScreen('bilingual', interim);
     try {
       const data = await fetch(`/api/books/${book[3]}/chapters/${chapter}?translation=${trans2}`).then(r => r.json());
       const v2 = (data.verses || []).find(v => v.number === verseNum);
-      const final = { ref, text, lang1, text2: v2 ? v2.text : '', lang2 };
+      const t2 = v2 ? v2.text : '';
+      interimSync = syncBilingualColumnParts(text, t2, fontSize);
+      setBilingualParts({ parts1: interimSync.parts1, parts2: interimSync.parts2 });
+      setVersePartIdx(0);
+      const final = {
+        ref,
+        lang1,
+        lang2,
+        text: interimSync.parts1[0] ?? '',
+        text2: interimSync.parts2[0] ?? '',
+        partIdx: 0,
+        totalParts: interimSync.totalParts,
+      };
       setContent(final);
       pushToScreen('bilingual', final);
-    } catch {}
+    } catch { /* keep interim */ }
   }
 
   async function selectSong(songId) {
@@ -614,27 +759,37 @@ function App() {
         case 'ArrowUp':   e.preventDefault(); setChapter(c => Math.max(1, c - 1)); break;
         case 'ArrowDown': e.preventDefault(); setChapter(c => Math.min(maxCh, c + 1)); break;
         case 'ArrowLeft': e.preventDefault(); {
-          // Navigate to previous part of current verse, or previous verse
-          if (verseParts.length > 1 && versePartIdx > 0) {
-            sendCurrentVersePart(versePartIdx - 1);
+          const isBi = template === 'bilingual';
+          const partLen = isBi ? (bilingualParts?.parts1?.length || 0) : verseParts.length;
+          if (partLen > 1 && versePartIdx > 0) {
+            if (isBi) sendCurrentBilingualPart(versePartIdx - 1);
+            else sendCurrentVersePart(versePartIdx - 1);
             break;
           }
           if (!chapterVerses.length) break;
           const ci = chapterVerses.findIndex(v => v.number === activeVerse);
           const ni = ci <= 0 ? 0 : ci - 1;
-          const v = chapterVerses[ni]; if (v) sendVerse(v.number, v.text);
+          const v = chapterVerses[ni]; if (v) {
+            if (isBi) sendBilingualVerse(v.number, v.text);
+            else sendVerse(v.number, v.text);
+          }
           break;
         }
         case 'ArrowRight': e.preventDefault(); {
-          // Navigate to next part of current verse, or next verse
-          if (verseParts.length > 1 && versePartIdx < verseParts.length - 1) {
-            sendCurrentVersePart(versePartIdx + 1);
+          const isBi = template === 'bilingual';
+          const partLen = isBi ? (bilingualParts?.parts1?.length || 0) : verseParts.length;
+          if (partLen > 1 && versePartIdx < partLen - 1) {
+            if (isBi) sendCurrentBilingualPart(versePartIdx + 1);
+            else sendCurrentVersePart(versePartIdx + 1);
             break;
           }
           if (!chapterVerses.length) break;
           const ci = chapterVerses.findIndex(v => v.number === activeVerse);
           const ni = ci < 0 ? 0 : Math.min(chapterVerses.length - 1, ci + 1);
-          const v = chapterVerses[ni]; if (v) sendVerse(v.number, v.text);
+          const v = chapterVerses[ni]; if (v) {
+            if (isBi) sendBilingualVerse(v.number, v.text);
+            else sendVerse(v.number, v.text);
+          }
           break;
         }
       }

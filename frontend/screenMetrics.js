@@ -26,6 +26,22 @@ export function verseTextAvailDimensions() {
   return { availW, availH };
 }
 
+/**
+ * One column in TVScreen bilingual layout: grid half-width, padding 7% 5%
+ * (vertical % uses the column width in CSS), body text at ~0.62× screen verse size.
+ */
+export function bilingualColumnTextAvailDimensions(screenFontSize) {
+  const colW = (W - 1) / 2;
+  const padXFrac = 0.05;
+  const padYFrac = 0.07;
+  const availW = colW * (1 - 2 * padXFrac);
+  const langBlock = 16 * 1.35 + 28;
+  const innerH = H - 2 * padYFrac * colW;
+  const availH = Math.max(120, (innerH - langBlock) * 0.9);
+  const bodyFontSize = Math.max(22, Math.round(screenFontSize * 0.62));
+  return { availW, availH, bodyFontSize };
+}
+
 /** Same word-wrap model as splitTextForScreen in App.jsx */
 export function estimateWrapLines(text, fontSize, availW, charW = 0.52) {
   const charsPerLine = Math.max(1, Math.floor(availW / (fontSize * charW)));
