@@ -172,6 +172,43 @@ export async function deleteSong(id) {
   return true;
 }
 
+export async function updateSong(id, input) {
+  const sid = String(id);
+  const newLyrics = input?.lyrics != null ? sanitizeLyrics(input.lyrics) : null;
+  const newTitle  = input?.title  != null ? normalizeTitle(input.title)  : null;
+
+  const customIdx = customSongs.findIndex(s => s.id === sid);
+  if (customIdx >= 0) {
+    const existing = customSongs[customIdx];
+    const lyrics = newLyrics !== null ? newLyrics : (existing.lyrics || '');
+    const title  = ((newTitle || existing.title) || 'Без названия').slice(0, 140);
+    const updated = { ...existing, title, lyrics, firstLine: firstNonEmptyLine(lyrics).slice(0, 240) };
+    customSongs[customIdx] = updated;
+    await saveCustomSongs();
+    rebuildIndex();
+    return updated;
+  }
+
+  const baseSong = baseSongs.find(s => s.id === sid);
+  if (!baseSong) return null;
+
+  const lyrics = newLyrics !== null ? newLyrics : (baseSong.lyrics || '');
+  const title  = ((newTitle || baseSong.title) || 'Без названия').slice(0, 140);
+  const newId  = nextCustomSongId();
+  const customSong = {
+    id: newId, title,
+    aliases: [...(baseSong.aliases || [])],
+    firstLine: firstNonEmptyLine(lyrics).slice(0, 240),
+    lyrics,
+    sources: [{ source: 'edited', ref: sid }],
+  };
+  customSongs.unshift(customSong);
+  hiddenIds.add(sid);
+  await Promise.all([saveCustomSongs(), saveHiddenIds()]);
+  rebuildIndex();
+  return { ...customSong, replacedId: sid };
+}
+
 export function searchSongs(query, limit = 120) {
   const q = lookupKey(query);
   if (!q) return { items: getSongs(limit) };

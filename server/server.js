@@ -19,13 +19,13 @@ import {
   load, getTranslations, getBooksIndex, getBook, getChapter, search
 } from './library.js';
 import {
-  loadSongs, getSongs, getSong, searchSongs, addCustomSong, deleteSong
+  loadSongs, getSongs, getSong, searchSongs, addCustomSong, deleteSong, updateSong
 } from './songs-library.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 
-const PORT = Number(process.env.PORT || 3000);
+const PORT = Number(process.env.PORT || 3100);
 const HOST = process.env.HOST || '127.0.0.1';
 
 const fastify = Fastify({
@@ -96,6 +96,16 @@ fastify.post('/api/songs/custom', async (req, reply) => {
     return reply.code(201).send(created);
   } catch (err) {
     return reply.code(400).send({ error: err.message || 'Invalid song payload' });
+  }
+});
+
+fastify.put('/api/songs/:id', async (req, reply) => {
+  try {
+    const updated = await updateSong(req.params.id, req.body || {});
+    if (!updated) return reply.code(404).send({ error: 'Song not found' });
+    return updated;
+  } catch (err) {
+    return reply.code(400).send({ error: err.message || 'Invalid payload' });
   }
 });
 

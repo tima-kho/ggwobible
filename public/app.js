@@ -19,8 +19,65 @@ const KEYS = {
   TEXT: 'v_text',
   REF:  'v_ref',
   TRANS:'v_translation',
-  TRIGGER: 'trigger'
+  TRIGGER: 'trigger',
+  BG: 'screen-bg'
 };
+
+const BG_THEMES = {
+  black:    { bg: '#000',                                                                     text: '#ffffff', ref: '#555' },
+  navy:     { bg: 'linear-gradient(160deg,#060e1c 0%,#0a1832 60%,#060c1a 100%)',              text: '#e8f0ff', ref: '#5577aa' },
+  celestial:{ bg: 'radial-gradient(ellipse at 50% 40%,#111a35 0%,#060810 100%)',              text: '#e0e8ff', ref: '#4466bb' },
+  violet:   { bg: 'radial-gradient(ellipse at 50% 55%,#1d1040 0%,#05040e 100%)',              text: '#f0e8ff', ref: '#8860cc' },
+  dawn:     { bg: 'linear-gradient(160deg,#180a08 0%,#2d1410 60%,#180808 100%)',              text: '#fff5ee', ref: '#b06040' },
+  forest:   { bg: 'linear-gradient(160deg,#051508 0%,#0a2010 60%,#051508 100%)',              text: '#e0ffec', ref: '#40905a' },
+  glow:     { bg: 'radial-gradient(ellipse at 50% 55%,#152040 0%,#050a18 65%)',               text: '#ffffff', ref: '#4488cc' },
+};
+
+function getBgThemeName() {
+  return localStorage.getItem(KEYS.BG) || 'black';
+}
+
+function getBgTheme(name) {
+  return BG_THEMES[name] || BG_THEMES.black;
+}
+
+function applyBgThemeToDOM(name) {
+  const t = getBgTheme(name);
+  const r = document.documentElement.style;
+  r.setProperty('--pres-bg', t.bg);
+  r.setProperty('--pres-text', t.text);
+  r.setProperty('--pres-ref', t.ref);
+}
+
+function bgSwatchesHTML() {
+  const current = getBgThemeName();
+  const list = [
+    { key: 'black',    title: 'Черный',   color: '#111' },
+    { key: 'navy',     title: 'Морской',  color: '#0a1832' },
+    { key: 'celestial',title: 'Небесный', color: '#111a35' },
+    { key: 'violet',   title: 'Фиолет.',  color: '#1d1040' },
+    { key: 'dawn',     title: 'Вечерний', color: '#2d1410' },
+    { key: 'forest',   title: 'Лесной',   color: '#0a2010' },
+    { key: 'glow',     title: 'Сияние',   color: 'radial-gradient(circle,#1a2a50,#050810)' },
+  ];
+  return list.map(s =>
+    `<button class="bg-swatch${current === s.key ? ' active' : ''}" data-bg="${s.key}" style="background:${s.color}" title="${s.title}"></button>`
+  ).join('');
+}
+
+function buildPipCSS(name) {
+  const t = getBgTheme(name);
+  return `
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{margin:0;padding:0;height:100%;background:${t.bg};color:${t.text};overflow:hidden;cursor:none;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Inter","Helvetica Neue",Arial,sans-serif}
+    .screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:4vh 5vw;background:${t.bg}}
+    .stage{max-width:92vw;text-align:center;transition:opacity .5s ease}
+    .stage.hidden{opacity:0}
+    .text{font-size:clamp(28px,5.5vw,110px);line-height:1.18;font-weight:500;letter-spacing:0.3px;color:${t.text};word-wrap:break-word;white-space:pre-line}
+    .ref{margin-top:4vh;font-size:clamp(14px,1.8vw,36px);color:${t.ref};letter-spacing:1px}
+  `;
+}
 
 function pushVerse({ text, ref, translation }) {
   localStorage.setItem(KEYS.TEXT, text);
@@ -350,6 +407,11 @@ async function renderAdmin() {
           </div>
         </div>
 
+        <div class="bg-picker">
+          <span class="bg-picker-label">Фон экрана</span>
+          <div class="bg-picker-swatches">${bgSwatchesHTML()}</div>
+        </div>
+
         <div class="preview-wrap">
           <div class="preview">
             <div id="preview-stage" class="stage hidden">
@@ -395,7 +457,8 @@ async function renderAdmin() {
     activeVersePageIndex: 0,       // текущий слайд (0..pages.length-1)
     screenWindow: null,
     pipWindow:   null,
-    pipUpdate:   null              // прямой колбэк в PiP, минуя localStorage
+    pipUpdate:    null,            // прямой колбэк в PiP, минуя localStorage
+  pipApplyTheme: null
   };
 
   /* ----- ссылки на узлы ----- */
@@ -1143,6 +1206,19 @@ async function renderAdmin() {
   els.btnNextCh.addEventListener('click', () => navChapter(+1));
   document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
 
+  document.querySelectorAll('.bg-swatch').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const name = btn.dataset.bg;
+      localStorage.setItem(KEYS.BG, name);
+      applyBgThemeToDOM(name);
+      document.querySelectorAll('.bg-swatch').forEach(b =>
+        b.classList.toggle('active', b.dataset.bg === name)
+      );
+      if (state.pipApplyTheme) state.pipApplyTheme(name);
+    });
+  });
+  applyBgThemeToDOM(getBgThemeName());
+
   /* ----- Клавиатура: ↑↓ — главы, ←→ — стихи ----- */
   function isTyping(el) {
     return el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
@@ -1181,34 +1257,8 @@ async function renderAdmin() {
     });
     state.pipWindow = pip;
 
-    // Встроенные стили — копировать главные стили дороже и нестабильно,
-    // у проектора их и так совсем немного.
     const style = pip.document.createElement('style');
-    style.textContent = `
-      *, *::before, *::after { box-sizing: border-box; }
-      html, body {
-        margin: 0; padding: 0; height: 100%;
-        background: #000; color: #fff; overflow: hidden; cursor: none;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                     "Inter", "Helvetica Neue", Arial, sans-serif;
-      }
-      .screen {
-        position: fixed; inset: 0; display: flex;
-        align-items: center; justify-content: center;
-        padding: 4vh 5vw; background: #000;
-      }
-      .stage { max-width: 92vw; text-align: center; transition: opacity .5s ease; }
-      .stage.hidden { opacity: 0; }
-      .text {
-        font-size: clamp(28px, 5.5vw, 110px);
-        line-height: 1.18; font-weight: 500; letter-spacing: 0.3px;
-        color: #fff; word-wrap: break-word;
-      }
-      .ref {
-        margin-top: 4vh; font-size: clamp(14px, 1.8vw, 36px);
-        color: #888; letter-spacing: 1px;
-      }
-    `;
+    style.textContent = buildPipCSS(getBgThemeName());
     pip.document.head.append(style);
     pip.document.title = 'Великая Благодать — Поверх окон';
     pip.document.body.innerHTML = `
@@ -1237,12 +1287,13 @@ async function renderAdmin() {
       }, FADE_MS);
     }
 
-    // Прямая связь admin → PiP: selectVerse() вызывает state.pipUpdate
-    // напрямую, без localStorage — мгновенно и не зависит от 'storage' события,
-    // которое в той же вкладке всё равно не сработает.
     state.pipUpdate = update;
+    state.pipApplyTheme = (name) => {
+      const t = getBgTheme(name);
+      style.textContent = buildPipCSS(name);
+      pip.document.body.style.background = t.bg;
+    };
 
-    // Покажем текущий стих, если он уже выбран.
     const initial = readVerse();
     if (initial.text) {
       $text.textContent = initial.text;
@@ -1253,6 +1304,7 @@ async function renderAdmin() {
     pip.addEventListener('pagehide', () => {
       state.pipUpdate = null;
       state.pipWindow = null;
+      state.pipApplyTheme = null;
       els.status.textContent = 'Плавающее окно закрыто';
     });
 
@@ -1333,6 +1385,11 @@ async function renderSongs() {
           </div>
         </div>
 
+        <div class="bg-picker">
+          <span class="bg-picker-label">Фон экрана</span>
+          <div class="bg-picker-swatches">${bgSwatchesHTML()}</div>
+        </div>
+
         <div class="preview-wrap">
           <div class="preview">
             <div id="song-preview-stage" class="stage hidden">
@@ -1380,7 +1437,8 @@ async function renderSongs() {
     activeSlideIdx: 0,
     editSlides: null,
     pipWindow: null,
-    pipUpdate: null
+    pipUpdate: null,
+    pipApplyTheme: null
   };
   const $ = id => document.getElementById(id);
   const els = {
@@ -1835,14 +1893,7 @@ async function renderSongs() {
     const pip = await window.documentPictureInPicture.requestWindow({ width: 1280, height: 720 });
     state.pipWindow = pip;
     const style = pip.document.createElement('style');
-    style.textContent = `
-      html,body{margin:0;height:100%;background:#000;color:#fff;overflow:hidden}
-      .screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:4vh 5vw}
-      .stage{max-width:92vw;text-align:center;transition:opacity .5s ease}
-      .stage.hidden{opacity:0}
-      .text{font-size:clamp(28px,5.5vw,110px);line-height:1.18;white-space:pre-line}
-      .ref{margin-top:4vh;font-size:clamp(14px,1.8vw,36px);color:#888}
-    `;
+    style.textContent = buildPipCSS(getBgThemeName());
     pip.document.head.append(style);
     pip.document.body.innerHTML = `
       <div class="screen">
@@ -1864,11 +1915,16 @@ async function renderSongs() {
       }, 500);
     };
     state.pipUpdate = update;
+    state.pipApplyTheme = (name) => {
+      style.textContent = buildPipCSS(name);
+      pip.document.body.style.background = getBgTheme(name).bg;
+    };
     const initial = readVerse();
     if (initial.text) update(initial.text, initial.ref);
     pip.addEventListener('pagehide', () => {
       state.pipUpdate = null;
       state.pipWindow = null;
+      state.pipApplyTheme = null;
     });
   }
 
@@ -1888,6 +1944,20 @@ async function renderSongs() {
     else enterEditMode();
   });
   document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
+
+  document.querySelectorAll('.bg-swatch').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const name = btn.dataset.bg;
+      localStorage.setItem(KEYS.BG, name);
+      applyBgThemeToDOM(name);
+      document.querySelectorAll('.bg-swatch').forEach(b =>
+        b.classList.toggle('active', b.dataset.bg === name)
+      );
+      if (state.pipApplyTheme) state.pipApplyTheme(name);
+    });
+  });
+  applyBgThemeToDOM(getBgThemeName());
+
   els.btnOpen.addEventListener('click', () => {
     window.open(location.pathname + '?mode=screen', 'biblePresenterScreen', 'width=1200,height=720');
   });
@@ -1967,7 +2037,10 @@ function renderScreen() {
 
   window.addEventListener('storage', e => {
     if (!e.key || [KEYS.TEXT, KEYS.REF, KEYS.TRIGGER].includes(e.key)) update();
+    if (e.key === KEYS.BG) applyBgThemeToDOM(e.newValue || 'black');
   });
+
+  applyBgThemeToDOM(getBgThemeName());
 
   // Если экран открыли позже, чем выбрали стих — показать сразу.
   const initial = readVerse();
