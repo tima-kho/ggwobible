@@ -1,4 +1,5 @@
 import { getSongs, getSong, searchSongs, addCustomSong, deleteSong, updateSong } from '../services/songs.service.js';
+import { getAllSongFonts, setSongFont } from '../services/songs-fonts.service.js';
 
 export async function songsRoutes(fastify) {
   fastify.get('/api/songs', async req => ({
@@ -40,5 +41,14 @@ export async function songsRoutes(fastify) {
     const deleted = await deleteSong(req.params.id);
     if (!deleted) return reply.code(404).send({ error: 'Song not found' });
     return { ok: true };
+  });
+
+  fastify.get('/api/songs-fonts', async () => getAllSongFonts());
+
+  fastify.patch('/api/songs/:id/font', async (req, reply) => {
+    const { fontId, fontSize } = req.body || {};
+    if (!fontId || fontSize == null) return reply.code(400).send({ error: 'fontId and fontSize required' });
+    const result = await setSongFont(req.params.id, fontId, Number(fontSize));
+    return result;
   });
 }

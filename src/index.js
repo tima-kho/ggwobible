@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { load } from './services/library.service.js';
 import { loadSongs } from './services/songs.service.js';
+import { loadSongFonts } from './services/songs-fonts.service.js';
 import { booksRoutes } from './routes/books.js';
 import { songsRoutes } from './routes/songs.js';
 
@@ -29,6 +30,7 @@ fastify.get('/healthz', async () => ({ ok: true }));
   try {
     await load();
     await loadSongs();
+    await loadSongFonts();
     await fastify.listen({ host: HOST, port: PORT });
     fastify.log.info(`Bible Presenter готов: http://${HOST}:${PORT}`);
   } catch (err) {

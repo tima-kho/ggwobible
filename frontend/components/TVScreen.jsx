@@ -227,10 +227,22 @@ function TVScreen({ state, scale = 1 }) {
           <circle cx="90" cy="90" r="60" stroke={accent} strokeWidth="1" fill="none"/>
           <circle cx="90" cy="90" r="3" fill={accent}/>
         </svg>
-        <svg width="180" height="180" style={{ position:'absolute', bottom: 60, right: 60, opacity: 0.45 }}>
-          <path d="M30 90 L90 30 L150 90 L90 150 Z" stroke={accent} strokeWidth="1" fill="none"/>
-          <path d="M60 90 L90 60 L120 90 L90 120 Z" stroke={accent} strokeWidth="1" fill="none"/>
-        </svg>
+        {/* QR code — fixed bottom-right, never displaced by font changes */}
+        <div style={{
+          position:'absolute', bottom: 48, right: 56,
+          display:'flex', flexDirection:'column', alignItems:'center', gap: 10,
+        }}>
+          <img src="/qrcode.jpg" alt="QR" style={{
+            width: 160, height: 160, borderRadius: 12,
+            border: `2px solid ${accent}`,
+            background: '#fff', padding: 6,
+            boxSizing: 'border-box',
+          }}/>
+          <div style={{
+            fontFamily:'Manrope', fontSize: 14, color: accent,
+            letterSpacing: 3, textTransform:'uppercase', fontWeight: 600,
+          }}>Великая Благодать</div>
+        </div>
         <div style={{
           fontSize: 24, letterSpacing: 12, textTransform:'uppercase',
           fontFamily:'Manrope', fontWeight: 600, color: accent, marginBottom: 40,
@@ -325,18 +337,17 @@ function TVScreen({ state, scale = 1 }) {
   // ============ TEMPLATE: logo / black ============
   if (template === 'logo') {
     return (
-      <div style={{...wrap, background:'#000', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center'}}>
+      <div style={{...wrap, background: bgObj.bg, display:'flex', alignItems:'center', justifyContent:'center'}}>
+        <img src="/logo-ggwo.jpg" alt="Великая Благодать" style={{
+          width: 200, height: 200, borderRadius: '50%', objectFit:'cover',
+          flexShrink: 0,
+        }}/>
         <div style={{
-          width: 80, height: 80, borderRadius: 16,
-          background: 'linear-gradient(135deg, rgba(201,168,107,0.18), rgba(139,90,43,0.10))',
-          border: '1px solid rgba(201,168,107,0.20)',
-          display:'grid', placeItems:'center',
-          color:'rgba(201,168,107,0.85)',
-          fontFamily:'Cormorant Garamond', fontSize: 44, fontWeight: 600,
-        }}>В</div>
-        <div style={{
-          marginTop: 28, fontFamily:'Manrope', fontSize: 14, color:'rgba(255,255,255,0.2)',
-          letterSpacing: 8, textTransform:'uppercase',
+          marginLeft: 40,
+          fontFamily:'Cormorant Garamond', fontWeight: 600,
+          fontSize: 96, lineHeight: 1,
+          color: isLight ? '#1A140B' : 'rgba(251,248,242,0.90)',
+          letterSpacing: 2,
         }}>Великая Благодать</div>
       </div>
     );

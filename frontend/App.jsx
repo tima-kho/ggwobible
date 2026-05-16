@@ -184,6 +184,14 @@ function ScreenMode() {
   );
 }
 
+/* ============ Song language detector ============ */
+function detectSongLang(song) {
+  const text = (song.title || '') + ' ' + (song.firstLine || '');
+  if (/[a-zA-Z]{4,}/.test(text) && !/[а-яёА-ЯЁ]/.test(text)) return 'kjv';
+  if (/[ңүөӨҮҢ]/.test(text)) return 'kyb';
+  return 'rst';
+}
+
 /* ============ Song lyrics parser ============ */
 function parseSongBlocks(lyrics) {
   const sections = String(lyrics || '').split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
@@ -253,7 +261,9 @@ function tokens(dark) {
 function App() {
   const [dark, setDark] = useState(false);
   const [translation, setTranslation] = useState(() => localStorage.getItem('ui-trans') || 'kyb');
-  const [tab, setTab] = useState('books');
+  const [tab, setTab] = useState(() => localStorage.getItem('ui-bible-tab') || 'books');
+  const [mode, setMode] = useState(() => localStorage.getItem('ui-mode') || 'bible');
+  const [songLangFilter, setSongLangFilter] = useState('all');
 
   // Book navigation
   const allBooks = useMemo(() => [...BOOKS_OT_FULL, ...BOOKS_NT_FULL], []);
@@ -280,6 +290,9 @@ function App() {
   const [songBlockPartIdx, setSongBlockPartIdx] = useState(0);
   const [songCache, setSongCache] = useState({});
   const [editingSong, setEditingSong] = useState(null); // null | { id, title, lyrics, isNew }
+  const [songFonts, setSongFonts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('song-fonts') || '{}'); } catch { return {}; }
+  });
 
   // Song queue
   const [songQueue, setSongQueue] = useState([]);
@@ -308,7 +321,10 @@ function App() {
   templateRef.current = template;
 
   const C = tokens(dark);
-  const fontStack = (FONTS_SCREEN.find(f => f.id === fontId) || FONTS_SCREEN[0]).stack;
+  const activeSongFont = (mode === 'songs' && activeSongId) ? (songFonts[activeSongId] || null) : null;
+  const effectiveFontId = activeSongFont?.fontId ?? fontId;
+  const effectiveFontSize = activeSongFont?.fontSize ?? fontSize;
+  const fontStack = (FONTS_SCREEN.find(f => f.id === effectiveFontId) || FONTS_SCREEN[0]).stack;
 
   // ── Load chapter from API ──────────────────────────────────────────
   useEffect(() => {
@@ -410,15 +426,31 @@ function App() {
       .then(r => r.json())
       .then(data => setSongsList(data.items || []))
       .catch(() => {});
+    fetch('/api/songs-fonts')
+      .then(r => r.json())
+      .then(data => {
+        if (data && typeof data === 'object') {
+          setSongFonts(prev => ({ ...prev, ...data }));
+          localStorage.setItem('song-fonts', JSON.stringify({ ...JSON.parse(localStorage.getItem('song-fonts') || '{}'), ...data }));
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  // ── Persist mode/tab choices ───────────────────────────────────────
+  useEffect(() => { localStorage.setItem('ui-mode', mode); }, [mode]);
+  useEffect(() => { localStorage.setItem('ui-bible-tab', tab); }, [tab]);
 
   // ── Sync screen settings to localStorage ──────────────────────────
   useEffect(() => {
-    localStorage.setItem('screen-bg',       bg);
-    localStorage.setItem('screen-fontId',   fontId);
-    localStorage.setItem('screen-fontSize', String(fontSize));
+    localStorage.setItem('screen-bg', bg);
+    // In songs mode, font is pushed per-block; don't overwrite with global
+    if (mode !== 'songs') {
+      localStorage.setItem('screen-fontId', fontId);
+      localStorage.setItem('screen-fontSize', String(fontSize));
+    }
     localStorage.setItem('screen-settings-trigger', String(Date.now()));
-  }, [bg, fontId, fontSize]);
+  }, [bg, fontId, fontSize, mode]);
 
   // ── Persist translation choice ─────────────────────────────────────
   useEffect(() => {
@@ -457,6 +489,33 @@ function App() {
     }, 1500);
     return () => clearInterval(id);
   }, [screenOn]);
+
+  // ── Song font helpers ──────────────────────────────────────────────
+  function setSongFontProp(songId, updates) {
+    const current = songFonts[songId] || { fontId, fontSize };
+    const merged = { ...current, ...updates };
+    const next = { ...songFonts, [songId]: merged };
+    setSongFonts(next);
+    localStorage.setItem('song-fonts', JSON.stringify(next));
+    fetch(`/api/songs/${songId}/font`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fontId: merged.fontId, fontSize: merged.fontSize }),
+    }).catch(() => {});
+  }
+
+  function initSongFont(songId) {
+    if (songId && !songFonts[songId]) {
+      const next = { ...songFonts, [songId]: { fontId, fontSize } };
+      setSongFonts(next);
+      localStorage.setItem('song-fonts', JSON.stringify(next));
+      fetch(`/api/songs/${songId}/font`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fontId, fontSize }),
+      }).catch(() => {});
+    }
+  }
 
   // ── Helpers ────────────────────────────────────────────────────────
   function bookLabel(meta) {
@@ -584,6 +643,7 @@ function App() {
   }
 
   async function selectSong(songId) {
+    initSongFont(songId);
     setActiveSongId(songId);
     setActiveBlockIdx(0);
     if (songCache[songId]) {
@@ -618,6 +678,9 @@ function App() {
 
   function sendSongTitle() {
     if (!activeSongData) return;
+    const songFont = songFonts[activeSongId] || { fontId, fontSize };
+    localStorage.setItem('screen-fontId', songFont.fontId);
+    localStorage.setItem('screen-fontSize', String(songFont.fontSize));
     setTemplate('song-title');
     const newContent = { title: activeSongData.title, subtitle: activeSongData.firstLine || '' };
     setContent(newContent);
@@ -628,9 +691,14 @@ function App() {
     if (!activeSongData || !activeSongBlocks[idx]) return;
     const block = activeSongBlocks[idx];
     setActiveBlockIdx(idx);
-    const parts = splitTextForScreen(block.text, fontSize, SONG_AVAIL_W, SONG_AVAIL_H);
+    const songFont = songFonts[activeSongId] || { fontId, fontSize };
+    const effectiveSize = songFont.fontSize;
+    const parts = splitTextForScreen(block.text, effectiveSize, SONG_AVAIL_W, SONG_AVAIL_H);
     setSongBlockParts(parts);
     setSongBlockPartIdx(0);
+    // Push song font to screen
+    localStorage.setItem('screen-fontId', songFont.fontId);
+    localStorage.setItem('screen-fontSize', String(effectiveSize));
     pushSongBlockPart(idx, block, parts, 0);
   }
 
@@ -662,6 +730,9 @@ function App() {
   function sendCurrentSongBlockPart(partIdx) {
     const block = activeSongBlocks[activeBlockIdx];
     if (!block || !songBlockParts[partIdx]) return;
+    const songFont = songFonts[activeSongId] || { fontId, fontSize };
+    localStorage.setItem('screen-fontId', songFont.fontId);
+    localStorage.setItem('screen-fontSize', String(songFont.fontSize));
     setSongBlockPartIdx(partIdx);
     pushSongBlockPart(activeBlockIdx, block, songBlockParts, partIdx);
   }
@@ -745,6 +816,39 @@ function App() {
     setEditingSong(null);
   }
 
+  async function handleSongUpdated(savedSong) {
+    try {
+      const data = await fetch('/api/songs?limit=300').then(r => r.json());
+      setSongsList(data.items || []);
+    } catch {}
+    const blocks = parseSongBlocks(savedSong.lyrics || '');
+    const entry = { id: savedSong.id, title: savedSong.title, firstLine: savedSong.firstLine, lyrics: savedSong.lyrics, blocks };
+    setSongCache(prev => ({ ...prev, [savedSong.id]: entry }));
+    if (activeSongId === savedSong.id) {
+      setActiveSongData(entry);
+      setActiveSongBlocks(blocks);
+    }
+  }
+
+  async function handleSongDeleted(songId) {
+    try {
+      const data = await fetch('/api/songs?limit=300').then(r => r.json());
+      setSongsList(data.items || []);
+    } catch {}
+    setSongCache(prev => {
+      const next = { ...prev };
+      delete next[songId];
+      return next;
+    });
+    if (activeSongId === songId) {
+      setActiveSongId(null);
+      setActiveSongData(null);
+      setActiveSongBlocks([]);
+      setActiveBlockIdx(0);
+    }
+    setEditingSong(null);
+  }
+
   // ── Keyboard navigation ────────────────────────────────────
   const kbRef = useRef(null);
   kbRef.current = (e) => {
@@ -753,7 +857,7 @@ function App() {
     const el = e.target;
     if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
 
-    if (tab === 'books' || tab === 'search') {
+    if (mode === 'bible') {
       const maxCh = allBooks[bookIdx]?.[2] || 1;
       switch (e.key) {
         case 'ArrowUp':   e.preventDefault(); setChapter(c => Math.max(1, c - 1)); break;
@@ -793,7 +897,7 @@ function App() {
           break;
         }
       }
-    } else if (tab === 'songs') {
+    } else if (mode === 'songs') {
       switch (e.key) {
         case 'ArrowUp': e.preventDefault(); {
           if (songQueue.length > 0) {
@@ -925,11 +1029,12 @@ function App() {
     if (idx >= 0) {
       setBookIdx(idx);
       setChapter(item.chapter);
+      setMode('bible');
       setTab('books');
     }
   }
 
-  const state = { template, bg, fontStack, fontSize, content };
+  const state = { template, bg, fontStack, fontSize: effectiveFontSize, content };
   const currentBook = allBooks[bookIdx];
   const chapterTitle = chapterBookMeta
     ? `${chapterBookMeta.ruFull || chapterBookMeta.ru} · Глава ${chapter}`
@@ -949,13 +1054,22 @@ function App() {
           C={C} dark={dark}
           song={editingSong}
           onSave={handleSongSaved}
+          onUpdate={handleSongUpdated}
+          onDelete={handleSongDeleted}
           onClose={() => setEditingSong(null)}
+          songFonts={songFonts}
+          setSongFontProp={setSongFontProp}
+          globalFontId={fontId}
+          globalFontSize={fontSize}
+          bg={bg}
         />
       )}
       <Sidebar
         C={C} dark={dark} setDark={setDark}
         translation={translation} setTranslation={setTranslation}
         tab={tab} setTab={setTab}
+        mode={mode} setMode={setMode}
+        songLangFilter={songLangFilter} setSongLangFilter={setSongLangFilter}
         bookIdx={bookIdx} setBookIdx={setBookIdx}
         chapter={chapter} setChapter={setChapter}
         activeSongId={activeSongId}
@@ -989,6 +1103,9 @@ function App() {
         openTvScreen={openTvScreen}
         closeTvScreen={closeTvScreen}
         tab={tab}
+        mode={mode}
+        activeSongFont={activeSongFont}
+        setSongFontProp={setSongFontProp}
         activeVerse={activeVerse}
         sendVerse={sendVerse}
         chapterVerses={chapterVerses}
@@ -997,6 +1114,7 @@ function App() {
         chapter={chapter} setChapter={setChapter}
         bookIdx={bookIdx}
         allBooks={allBooks}
+        activeSongId={activeSongId}
         activeSongData={activeSongData}
         activeSongBlocks={activeSongBlocks}
         activeBlockIdx={activeBlockIdx}
@@ -1014,6 +1132,7 @@ function App() {
 
 /* ============ Sidebar ============ */
 function Sidebar({ C, dark, setDark, translation, setTranslation, tab, setTab,
+  mode, setMode, songLangFilter, setSongLangFilter,
   bookIdx, setBookIdx, chapter, setChapter,
   activeSongId, activeSongBlocks, activeSongData, activeBlockIdx,
   songsList, selectSong, sendSongTitle, sendSongBlock,
@@ -1045,56 +1164,96 @@ function Sidebar({ C, dark, setDark, translation, setTranslation, tab, setTab,
         }}>{dark ? '☀' : '☾'}</button>
       </div>
 
-      {/* Translation */}
-      <div>
-        <div style={{ fontSize: 10, fontWeight: 700, color: C.textSubtle, letterSpacing: 1, marginBottom: 8 }}>ПЕРЕВОД</div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap: 6 }}>
-          {[
-            { code:'kyb', short:'КРГ', name:'Кыргызча' },
-            { code:'rst', short:'РСТ', name:'Русский' },
-            { code:'kjv', short:'KJV', name:'King James' },
-          ].map(t => (
-            <div key={t.code} onClick={() => setTranslation(t.code)} style={{
-              padding:'8px 4px', borderRadius: 8,
-              border: `1px solid ${translation===t.code ? C.accent : C.border}`,
-              background: translation===t.code ? C.accentSoft : 'transparent',
-              color: translation===t.code ? C.accent : C.text, textAlign:'center', cursor:'pointer',
-            }}>
-              <div style={{ fontWeight: 700, fontSize: 12 }}>{t.short}</div>
-              <div style={{ fontSize: 10, color: translation===t.code ? C.accent : C.textMute, marginTop: 2 }}>{t.name}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div style={{ display:'flex', gap: 22, borderBottom: `1px solid ${C.border}`, paddingBottom: 10, marginTop: 4 }}>
-        {[['search','Поиск'], ['books','Книги'], ['songs','Песни']].map(([id,l]) => (
-          <div key={id} onClick={() => setTab(id)} style={{
-            fontSize: 14, fontWeight: tab===id ? 700 : 500,
-            color: tab===id ? C.text : C.textMute,
-            position:'relative', paddingBottom: 10, cursor:'pointer',
-          }}>
-            {l}
-            {tab===id && <div style={{ position:'absolute', left:0, right:0, bottom:-11, height: 2, background: C.accent }}/>}
-          </div>
+      {/* Mode toggle: Библия | Песни */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap: 6 }}>
+        {[['bible','Библия'],['songs','Песни']].map(([m, label]) => (
+          <div key={m} onClick={() => setMode(m)} style={{
+            padding:'10px 8px', borderRadius: 10, textAlign:'center', cursor:'pointer',
+            border: `1px solid ${mode===m ? C.accent : C.border}`,
+            background: mode===m ? C.accentSoft : 'transparent',
+            color: mode===m ? C.accent : C.textMute,
+            fontWeight: mode===m ? 700 : 500, fontSize: 14,
+          }}>{label}</div>
         ))}
       </div>
 
+      {mode === 'bible' && (
+        <>
+          {/* Translation */}
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: C.textSubtle, letterSpacing: 1, marginBottom: 8 }}>ПЕРЕВОД</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap: 6 }}>
+              {[
+                { code:'kyb', short:'КРГ', name:'Кыргызча' },
+                { code:'rst', short:'РСТ', name:'Русский' },
+                { code:'kjv', short:'KJV', name:'King James' },
+              ].map(t => (
+                <div key={t.code} onClick={() => setTranslation(t.code)} style={{
+                  padding:'8px 4px', borderRadius: 8,
+                  border: `1px solid ${translation===t.code ? C.accent : C.border}`,
+                  background: translation===t.code ? C.accentSoft : 'transparent',
+                  color: translation===t.code ? C.accent : C.text, textAlign:'center', cursor:'pointer',
+                }}>
+                  <div style={{ fontWeight: 700, fontSize: 12 }}>{t.short}</div>
+                  <div style={{ fontSize: 10, color: translation===t.code ? C.accent : C.textMute, marginTop: 2 }}>{t.name}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Bible sub-tabs */}
+          <div style={{ display:'flex', gap: 22, borderBottom: `1px solid ${C.border}`, paddingBottom: 10, marginTop: 4 }}>
+            {[['search','Поиск'], ['books','Книги']].map(([id,l]) => (
+              <div key={id} onClick={() => setTab(id)} style={{
+                fontSize: 14, fontWeight: tab===id ? 700 : 500,
+                color: tab===id ? C.text : C.textMute,
+                position:'relative', paddingBottom: 10, cursor:'pointer',
+              }}>
+                {l}
+                {tab===id && <div style={{ position:'absolute', left:0, right:0, bottom:-11, height: 2, background: C.accent }}/>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {mode === 'songs' && (
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.textSubtle, letterSpacing: 1, marginBottom: 8 }}>ЯЗЫК</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap: 6 }}>
+            {[
+              { code:'kyb', short:'КРГ', name:'Кыргызча' },
+              { code:'rst', short:'РСТ', name:'Русский' },
+              { code:'kjv', short:'KJV', name:'English' },
+            ].map(l => (
+              <div key={l.code} onClick={() => setSongLangFilter(prev => prev === l.code ? 'all' : l.code)} style={{
+                padding:'8px 4px', borderRadius: 8,
+                border: `1px solid ${songLangFilter===l.code ? C.accent : C.border}`,
+                background: songLangFilter===l.code ? C.accentSoft : 'transparent',
+                color: songLangFilter===l.code ? C.accent : C.text, textAlign:'center', cursor:'pointer',
+              }}>
+                <div style={{ fontWeight: 700, fontSize: 12 }}>{l.short}</div>
+                <div style={{ fontSize: 10, color: songLangFilter===l.code ? C.accent : C.textMute, marginTop: 2 }}>{l.name}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ flex: 1, overflow:'auto' }}>
-        {tab === 'search' && (
+        {mode === 'bible' && tab === 'search' && (
           <SearchTab C={C}
             searchQuery={searchQuery} searchResults={searchResults}
             searchLoading={searchLoading} handleSearchInput={handleSearchInput}
             sendSearchResult={sendSearchResult}
           />
         )}
-        {tab === 'books' && (
+        {mode === 'bible' && tab === 'books' && (
           <BooksTab C={C} bookIdx={bookIdx} setBookIdx={setBookIdx}
             chapter={chapter} setChapter={setChapter}
           />
         )}
-        {tab === 'songs' && (
+        {mode === 'songs' && (
           <SongsTab C={C}
             songsList={songsList} activeSongId={activeSongId}
             activeSongBlocks={activeSongBlocks} activeSongData={activeSongData}
@@ -1102,6 +1261,7 @@ function Sidebar({ C, dark, setDark, translation, setTranslation, tab, setTab,
             selectSong={selectSong} sendSongTitle={sendSongTitle} sendSongBlock={sendSongBlock}
             openSongEditor={openSongEditor} openNewSong={openNewSong}
             addToQueue={addToQueue} songQueue={songQueue}
+            songLangFilter={songLangFilter}
           />
         )}
       </div>
@@ -1269,11 +1429,16 @@ function BooksTab({ C, bookIdx, setBookIdx, chapter, setChapter }) {
 
 /* ============ Songs Tab ============ */
 function SongsTab({ C, songsList, activeSongId, activeSongBlocks, activeSongData, activeBlockIdx,
-  selectSong, sendSongTitle, sendSongBlock, openSongEditor, openNewSong, addToQueue, songQueue }) {
+  selectSong, sendSongTitle, sendSongBlock, openSongEditor, openNewSong, addToQueue, songQueue,
+  songLangFilter }) {
   const [filter, setFilter] = useState('');
-  const visible = filter
-    ? songsList.filter(s => s.title.toLowerCase().includes(filter.toLowerCase()) || (s.firstLine||'').toLowerCase().includes(filter.toLowerCase()))
-    : songsList;
+  const visible = (songLangFilter && songLangFilter !== 'all'
+    ? songsList.filter(s => detectSongLang(s) === songLangFilter)
+    : songsList
+  ).filter(s => !filter ||
+    s.title.toLowerCase().includes(filter.toLowerCase()) ||
+    (s.firstLine||'').toLowerCase().includes(filter.toLowerCase())
+  );
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap: 8 }}>
@@ -1368,9 +1533,9 @@ function SongsTab({ C, songsList, activeSongId, activeSongBlocks, activeSongData
 /* ============ Main area ============ */
 function Main({ C, dark, state, template, setTemplate, bg, setBg, fontId, setFontId, fontSize, setFontSize,
   content, setContent, pushToScreen, screenOn, screenExternal, openTvScreen, closeTvScreen,
-  tab, activeVerse, sendVerse, chapterVerses, chapterLoading, chapterTitle,
+  tab, mode, activeSongFont, setSongFontProp, activeVerse, sendVerse, chapterVerses, chapterLoading, chapterTitle,
   chapter, setChapter, bookIdx, allBooks,
-  activeSongData, activeSongBlocks, activeBlockIdx, sendSongBlock,
+  activeSongId, activeSongData, activeSongBlocks, activeBlockIdx, sendSongBlock,
   openSongEditor, clearScreen,
   songQueue, queueIdx, removeFromQueue, selectQueueSong }) {
 
@@ -1403,7 +1568,7 @@ function Main({ C, dark, state, template, setTemplate, bg, setBg, fontId, setFon
                 ? (screenExternal ? 'ТВ · внешний монитор ✓' : 'ТВ-экран открыт · 1920×1080')
                 : 'Экран не открыт'}
             </span>
-            <span>{tab === 'songs'
+            <span>{mode === 'songs'
               ? (songQueue.length > 0 ? '↑↓ — очередь · ←→ — слайды' : '↑↓ — песни · ←→ — слайды')
               : '↑↓ — главы · ←→ — стихи'}</span>
           </div>
@@ -1424,16 +1589,24 @@ function Main({ C, dark, state, template, setTemplate, bg, setBg, fontId, setFon
         </div>
       </div>
 
-      <TemplatePicker C={C} template={template} setTemplate={setTemplate} tab={tab}/>
+      <TemplatePicker C={C} template={template} setTemplate={setTemplate} tab={mode === 'songs' ? 'songs' : tab}/>
 
       <div style={{ display:'grid', gridTemplateColumns:'1fr 280px', gap: 18 }}>
         <PreviewFrame C={C} state={state} screenOn={screenOn}/>
-        <ScreenControls C={C} bg={bg} setBg={setBg} fontId={fontId} setFontId={setFontId} fontSize={fontSize} setFontSize={setFontSize}/>
+        <ScreenControls
+          C={C} bg={bg} setBg={setBg}
+          fontId={fontId} setFontId={setFontId}
+          fontSize={fontSize} setFontSize={setFontSize}
+          mode={mode}
+          activeSongId={activeSongId}
+          activeSongFont={activeSongFont}
+          setSongFontProp={setSongFontProp}
+        />
       </div>
 
       {showEditor ? (
         <ContentEditor C={C} template={template} content={content} setContent={handleContentChange}/>
-      ) : tab === 'songs' ? (
+      ) : mode === 'songs' ? (
         <div style={{ display:'grid', gridTemplateColumns:'1fr 280px', gap: 18 }}>
           <SongBlocksPanel
             C={C}
@@ -1545,7 +1718,21 @@ function PreviewFrame({ C, state, screenOn }) {
 }
 
 /* ============ Screen controls (right panel) ============ */
-function ScreenControls({ C, bg, setBg, fontId, setFontId, fontSize, setFontSize }) {
+function ScreenControls({ C, bg, setBg, fontId, setFontId, fontSize, setFontSize,
+  mode, activeSongId, activeSongFont, setSongFontProp }) {
+  const isSongMode = mode === 'songs' && activeSongId && activeSongFont;
+  const displayFontId = isSongMode ? activeSongFont.fontId : fontId;
+  const displayFontSize = isSongMode ? activeSongFont.fontSize : fontSize;
+
+  function handleSetFontId(id) {
+    if (isSongMode) setSongFontProp(activeSongId, { fontId: id });
+    else setFontId(id);
+  }
+  function handleSetFontSize(v) {
+    if (isSongMode) setSongFontProp(activeSongId, { fontSize: v });
+    else setFontSize(v);
+  }
+
   return (
     <div style={{ padding: 16, borderRadius: 14, background: C.panelBg, border: `1px solid ${C.border}`, display:'flex', flexDirection:'column', gap: 14 }}>
       <div style={{ fontSize: 10, fontWeight: 700, color: C.textSubtle, letterSpacing: 1 }}>ФОН ЭКРАНА</div>
@@ -1562,15 +1749,16 @@ function ScreenControls({ C, bg, setBg, fontId, setFontId, fontSize, setFontSize
           </div>
         ))}
       </div>
+      {!isSongMode && (<>
       <div style={{ height: 1, background: C.border }}/>
       <div style={{ fontSize: 10, fontWeight: 700, color: C.textSubtle, letterSpacing: 1 }}>ШРИФТ</div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap: 5 }}>
         {FONTS_SCREEN.map(f => (
-          <div key={f.id} onClick={() => setFontId(f.id)} style={{
+          <div key={f.id} onClick={() => handleSetFontId(f.id)} style={{
             padding:'8px 4px', borderRadius: 8,
-            border: `1px solid ${fontId===f.id ? C.accent : C.border}`,
-            background: fontId===f.id ? C.accentSoft : 'transparent',
-            color: fontId===f.id ? C.accent : C.text,
+            border: `1px solid ${displayFontId===f.id ? C.accent : C.border}`,
+            background: displayFontId===f.id ? C.accentSoft : 'transparent',
+            color: displayFontId===f.id ? C.accent : C.text,
             textAlign:'center', fontSize: 11, fontWeight: 600, fontFamily: f.stack,
             cursor:'pointer',
           }}>{f.label}</div>
@@ -1579,23 +1767,32 @@ function ScreenControls({ C, bg, setBg, fontId, setFontId, fontSize, setFontSize
       <div style={{ height: 1, background: C.border }}/>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: C.textSubtle, letterSpacing: 1 }}>РАЗМЕР ТЕКСТА</div>
-        <div style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>{fontSize}pt</div>
+        <div style={{ fontSize: 12, color: C.accent, fontWeight: 700 }}>{displayFontSize}pt</div>
       </div>
-      <input type="range" min="32" max="140" value={fontSize}
-        onChange={e => setFontSize(+e.target.value)}
+      <input type="range" min="32" max="140" value={displayFontSize}
+        onChange={e => handleSetFontSize(+e.target.value)}
         style={{ width:'100%', accentColor: C.accent }}/>
       <div style={{ display:'flex', gap: 6 }}>
         {[{l:'S',v:48},{l:'M',v:64},{l:'L',v:80},{l:'XL',v:104}].map(s => (
-          <div key={s.l} onClick={() => setFontSize(s.v)} style={{
+          <div key={s.l} onClick={() => handleSetFontSize(s.v)} style={{
             flex:1, textAlign:'center', padding:'6px 0',
             borderRadius: 8, fontSize: 12, fontWeight: 600,
-            background: fontSize===s.v ? C.accentSoft : 'transparent',
-            color: fontSize===s.v ? C.accent : C.textMute,
-            border: `1px solid ${fontSize===s.v ? C.accent : C.border}`,
+            background: displayFontSize===s.v ? C.accentSoft : 'transparent',
+            color: displayFontSize===s.v ? C.accent : C.textMute,
+            border: `1px solid ${displayFontSize===s.v ? C.accent : C.border}`,
             cursor:'pointer',
           }}>{s.l}</div>
         ))}
       </div>
+      </>)}
+      {isSongMode && (
+        <div style={{ height: 1, background: C.border }}/>
+      )}
+      {isSongMode && (
+        <div style={{ fontSize: 10, color: C.textMute, fontStyle:'italic', textAlign:'center', lineHeight: 1.5 }}>
+          Шрифт песни — в редакторе песни
+        </div>
+      )}
     </div>
   );
 }
@@ -1839,178 +2036,423 @@ function ContentEditor({ C, template, content, setContent }) {
   );
 }
 
-/* ============ Song Editor Modal (full-screen) ============ */
-function SongEditorModal({ C, dark, song, onSave, onClose }) {
+/* ============ Song Editor Modal — Stage Focus ============ */
+function genId() { return Math.random().toString(36).slice(2,10); }
+
+function ProjectorPreview({ text, slideNum, total, fontStack, bgCss, screenFontSize }) {
+  const containerRef = React.useRef(null);
+  const [w, setW] = React.useState(0);
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => setW(entries[0].contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const h = w / (16/9);
+  const fontSize = w
+    ? (screenFontSize ? Math.max(8, screenFontSize * (w / 1920)) : Math.max(14, Math.min(w * 0.063, h * 0.14)))
+    : 24;
+  const ff = fontStack || '"Cormorant Garamond",serif';
+  const bg = bgCss || '#0c0a08';
+  const isLight = bg === '#FBF8F2';
+  const textColor = isLight ? '#1A140B' : '#f5efe2';
+  const emptyColor = isLight ? 'rgba(26,20,11,0.25)' : 'rgba(245,239,226,0.18)';
+  return (
+    <div ref={containerRef} style={{ display:'flex', flexDirection:'column', gap:8, flex:1, minHeight:0 }}>
+      <div style={{
+        width:'100%', height: w ? h : undefined, aspectRatio: w ? undefined : '16/9',
+        background: bg, borderRadius:10,
+        boxShadow:'0 12px 40px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(245,239,226,0.06)',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        padding:'5%', boxSizing:'border-box', overflow:'hidden',
+      }}>
+        {text.trim() ? (
+          <div style={{ fontFamily: ff, fontSize, fontWeight:500, lineHeight:1.22, color: textColor, textAlign:'center', maxWidth:'90%', wordBreak:'break-word' }}>
+            {text.split('\n').map((line, i, arr) => (
+              <React.Fragment key={i}>{line}{i < arr.length-1 && <br/>}</React.Fragment>
+            ))}
+          </div>
+        ) : (
+          <div style={{ color: emptyColor, fontFamily: ff, fontSize:Math.max(14,fontSize*0.65), fontStyle:'italic' }}>
+            Пустой слайд
+          </div>
+        )}
+      </div>
+      <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'rgba(245,239,226,0.5)', fontVariantNumeric:'tabular-nums' }}>
+        <span>СЛАЙД {String(slideNum).padStart(2,'0')} / {String(total).padStart(2,'0')}</span>
+        <span>1920 × 1080 · 16:9</span>
+      </div>
+    </div>
+  );
+}
+
+function SongEditorModal({ C, dark, song, onSave, onUpdate, onDelete, onClose, songFonts, setSongFontProp, globalFontId, globalFontSize, bg }) {
   const isNew = !song.id;
   const [title, setTitle] = useState(song.title || '');
   const [slides, setSlides] = useState(() => {
-    if (!song.lyrics) return [''];
-    return song.lyrics.split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
+    if (!song.lyrics) return [{ id: genId(), text: '' }];
+    const parts = song.lyrics.split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
+    return parts.length ? parts.map(t => ({ id: genId(), text: t })) : [{ id: genId(), text: '' }];
   });
-  const [rawMode, setRawMode] = useState(false);
-  const [rawText, setRawText] = useState(song.lyrics || '');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [saveState, setSaveState] = useState('idle');
+  const [saveError, setSaveError] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [fontLocked, setFontLocked] = useState(!isNew);
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dropMarker, setDropMarker] = useState(null);
+  const [creating, setCreating] = useState(false);
 
-  function switchToRaw() {
-    setRawText(slides.filter(s => s.trim()).join('\n\n'));
-    setRawMode(true);
-  }
-  function switchToSlides() {
-    const parsed = rawText.split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
-    setSlides(parsed.length ? parsed : ['']);
-    setRawMode(false);
-  }
+  const textareaRef = useRef(null);
+  const filmstripRef = useRef(null);
+  const saveTimer = useRef(null);
 
-  async function handleSave() {
-    setSaving(true);
-    setError(null);
-    const lyrics = rawMode ? rawText : slides.filter(s => s.trim()).join('\n\n');
+  useEffect(() => { textareaRef.current?.focus(); }, [activeIdx]);
+
+  useEffect(() => {
+    const strip = filmstripRef.current;
+    if (!strip) return;
+    const thumb = strip.children[activeIdx];
+    if (thumb) thumb.scrollIntoView({ inline:'center', behavior:'smooth', block:'nearest' });
+  }, [activeIdx]);
+
+  useEffect(() => {
+    if (isNew) return;
+    setSaveState('saving');
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(performSave, 700);
+    return () => clearTimeout(saveTimer.current);
+  }, [title, slides]);
+
+  async function performSave() {
+    const lyrics = slides.map(s => s.text).filter(t => t.trim()).join('\n\n');
     try {
-      const url = isNew ? '/api/songs/custom' : `/api/songs/${song.id}`;
-      const method = isNew ? 'POST' : 'PUT';
-      const resp = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
+      const resp = await fetch(`/api/songs/${song.id}`, {
+        method:'PUT', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ title, lyrics }),
       });
       if (!resp.ok) { const e = await resp.json(); throw new Error(e.error || `HTTP ${resp.status}`); }
       const saved = await resp.json();
-      onSave(saved);
+      setSaveState('saved'); setSaveError(null);
+      onUpdate?.(saved);
+    } catch (err) { setSaveState('error'); setSaveError(err.message); }
+  }
+
+  async function handleCreate() {
+    setCreating(true);
+    const lyrics = slides.map(s => s.text).filter(t => t.trim()).join('\n\n');
+    try {
+      const resp = await fetch('/api/songs/custom', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ title, lyrics }),
+      });
+      if (!resp.ok) { const e = await resp.json(); throw new Error(e.error || `HTTP ${resp.status}`); }
+      onSave(await resp.json());
+    } catch (err) { setSaveError(err.message); setCreating(false); }
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      const resp = await fetch(`/api/songs/${song.id}`, { method:'DELETE' });
+      if (!resp.ok) { const e = await resp.json(); throw new Error(e.error || `HTTP ${resp.status}`); }
+      onDelete(song.id);
     } catch (err) {
-      setError(err.message);
-      setSaving(false);
+      setSaveError(err.message);
+      setDeleting(false);
+      setDeleteConfirm(false);
     }
   }
 
-  function addSlide() { setSlides(prev => [...prev, '']); }
-  function updateSlide(idx, val) { setSlides(prev => { const n=[...prev]; n[idx]=val; return n; }); }
-  function deleteSlide(idx) { setSlides(prev => prev.filter((_,i) => i!==idx)); }
+  function addSlide(afterIdx) {
+    const ns = { id: genId(), text: '' };
+    setSlides(prev => { const n=[...prev]; n.splice(afterIdx+1,0,ns); return n; });
+    setActiveIdx(afterIdx+1);
+  }
+  function addSlideAtEnd() {
+    setSlides(prev => [...prev, { id: genId(), text: '' }]);
+    setActiveIdx(slides.length);
+  }
+  function updateSlide(idx, text) {
+    setSlides(prev => { const n=[...prev]; n[idx]={...n[idx],text}; return n; });
+  }
+  function deleteSlide(idx) {
+    if (slides.length<=1) return;
+    setSlides(prev => prev.filter((_,i)=>i!==idx));
+    setActiveIdx(prev => Math.min(prev, slides.length-2));
+  }
+  function duplicateSlide(idx) {
+    const copy = { id: genId(), text: slides[idx].text };
+    setSlides(prev => { const n=[...prev]; n.splice(idx+1,0,copy); return n; });
+    setActiveIdx(idx+1);
+  }
   function moveSlide(idx, delta) {
-    setSlides(prev => {
-      const n = [...prev]; const other = idx + delta;
-      if (other < 0 || other >= n.length) return prev;
-      [n[idx], n[other]] = [n[other], n[idx]]; return n;
-    });
+    const other = idx+delta;
+    if (other<0||other>=slides.length) return;
+    setSlides(prev => { const n=[...prev]; [n[idx],n[other]]=[n[other],n[idx]]; return n; });
+    setActiveIdx(other);
   }
 
-  const btn = (variant='normal') => ({
-    padding: variant==='icon' ? '5px 9px' : '9px 16px',
-    borderRadius: 8,
-    border: variant==='primary' ? 'none' : `1px solid ${C.border}`,
-    background: variant==='primary' ? C.primary : variant==='danger' ? 'transparent' : C.cardBg,
-    color: variant==='primary' ? C.primaryText : variant==='danger' ? C.danger : C.text,
-    fontFamily:'Manrope', fontSize: 13, fontWeight: 600, cursor:'pointer',
+  function handleKeyDown(e) {
+    const inText = e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT';
+    if (e.key==='ArrowLeft' && !inText) { e.preventDefault(); setActiveIdx(p=>Math.max(0,p-1)); }
+    if (e.key==='ArrowRight' && !inText) { e.preventDefault(); setActiveIdx(p=>Math.min(slides.length-1,p+1)); }
+    if ((e.metaKey||e.ctrlKey) && e.key==='Enter') { e.preventDefault(); addSlide(realActiveIdx); }
+    if ((e.metaKey||e.ctrlKey) && e.key==='ArrowUp') { e.preventDefault(); moveSlide(realActiveIdx,-1); }
+    if ((e.metaKey||e.ctrlKey) && e.key==='ArrowDown') { e.preventDefault(); moveSlide(realActiveIdx,+1); }
+    if (e.key==='Escape' && inText) e.target.blur();
+  }
+
+  function onDragStart(idx) { setDragIdx(idx); }
+  function onDragOver(e, idx) { e.preventDefault(); setDropMarker(idx); }
+  function onDrop(e, idx) {
+    e.preventDefault();
+    if (dragIdx===null||dragIdx===idx) { setDragIdx(null); setDropMarker(null); return; }
+    setSlides(prev => {
+      const n=[...prev]; const [rem]=n.splice(dragIdx,1);
+      n.splice(dragIdx<idx ? idx-1 : idx, 0, rem); return n;
+    });
+    setActiveIdx(dragIdx<idx ? idx-1 : idx);
+    setDragIdx(null); setDropMarker(null);
+  }
+  function onDragEnd() { setDragIdx(null); setDropMarker(null); }
+
+  const S = {
+    bg:'#211a10', elevated:'#1a140b', projector:'#0c0a08',
+    text:'#f5efe2', textMid:'#d8c9ad', textDim:'rgba(245,239,226,0.6)',
+    border:'rgba(245,239,226,0.08)', borderMed:'rgba(245,239,226,0.15)',
+    accent:'#d4a87a', saved:'#8aa379', danger:'#a14127',
+  };
+
+  const iconBtn = (disabled, isDanger) => ({
+    width:28, height:28, border:'none', background:'transparent',
+    color: disabled ? 'rgba(245,239,226,0.2)' : isDanger ? S.danger : S.textMid,
+    cursor: disabled ? 'default' : 'pointer',
+    borderRadius:4, fontSize:14, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0,
   });
 
+  const realActiveIdx = Math.min(activeIdx, slides.length-1);
+  const active = slides[realActiveIdx];
+
+  const songFont = (song.id && songFonts) ? (songFonts[song.id] || null) : null;
+  const editorFontId = songFont?.fontId ?? globalFontId ?? 'cormorant';
+  const editorFontSize = songFont?.fontSize ?? globalFontSize ?? 80;
+  const editorFontStack = (FONTS_SCREEN.find(f => f.id === editorFontId) || FONTS_SCREEN[0]).stack;
+  const editorBgCss = (SCREEN_BGS.find(b => b.id === bg) || SCREEN_BGS[0]).bg;
+  function handleEditorFontId(id) { if (song.id && setSongFontProp) setSongFontProp(song.id, { fontId: id, fontSize: editorFontSize }); }
+  function handleEditorFontSize(v) { if (song.id && setSongFontProp) setSongFontProp(song.id, { fontId: editorFontId, fontSize: v }); }
+
   return (
-    <div style={{
-      position:'fixed', inset:0, zIndex:9999,
-      background:C.bg, display:'flex', flexDirection:'column', fontFamily:'Manrope',
-    }}>
-      {/* Header */}
-      <div style={{
-        padding:'14px 24px', borderBottom:`1px solid ${C.border}`,
-        display:'flex', alignItems:'center', gap:12, background:C.panelBg, flexShrink:0,
-      }}>
-        <button onClick={onClose} style={{ ...btn(), fontSize:13, padding:'8px 14px' }}>← Назад</button>
+    <div
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      style={{
+        position:'fixed', inset:0, zIndex:9999,
+        background:S.bg, display:'flex', flexDirection:'column',
+        fontFamily:'"IBM Plex Sans",system-ui,sans-serif',
+        color:S.text, outline:'none',
+      }}
+    >
+      {/* Delete confirmation */}
+      {deleteConfirm && (
+        <div style={{ position:'fixed',inset:0,zIndex:10000,background:'rgba(0,0,0,0.65)',display:'flex',alignItems:'center',justifyContent:'center' }}
+          onClick={() => setDeleteConfirm(false)}>
+          <div style={{ background:S.elevated, border:`1px solid ${S.borderMed}`, borderRadius:16, padding:'32px 36px', maxWidth:400, width:'90%', boxShadow:'0 24px 64px rgba(0,0,0,0.55)' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize:36, marginBottom:14, textAlign:'center' }}>🗑</div>
+            <div style={{ fontSize:17, fontWeight:700, color:S.text, marginBottom:8, textAlign:'center' }}>Удалить песню?</div>
+            <div style={{ fontSize:13, color:S.textDim, textAlign:'center', marginBottom:28, lineHeight:1.6 }}>
+              «{title || 'Без названия'}» будет удалена навсегда.<br/>Это действие нельзя отменить.
+            </div>
+            <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
+              <button onClick={() => setDeleteConfirm(false)}
+                style={{ padding:'10px 24px', borderRadius:8, border:`1px solid ${S.borderMed}`, background:'transparent', color:S.text, fontFamily:'inherit', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                Отмена
+              </button>
+              <button onClick={handleDelete} disabled={deleting}
+                style={{ padding:'10px 24px', borderRadius:8, border:'none', background:S.danger, color:'#fff', fontFamily:'inherit', fontSize:13, fontWeight:600, cursor:'pointer', opacity:deleting?0.6:1 }}>
+                {deleting ? 'Удаление…' : 'Да, удалить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top bar */}
+      <div style={{ height:64, padding:'0 24px', display:'flex', alignItems:'center', gap:12, background:S.elevated, borderBottom:`1px solid ${S.border}`, flexShrink:0 }}>
+        <button onClick={onClose}
+          style={{ padding:'8px 14px', borderRadius:8, border:`1px solid ${S.borderMed}`, background:'transparent', color:S.textMid, fontFamily:'inherit', fontSize:13, fontWeight:500, cursor:'pointer', flexShrink:0 }}>
+          ← Назад
+        </button>
         <input
           value={title} onChange={e => setTitle(e.target.value)}
-          placeholder="Название песни..."
-          style={{
-            flex:1, border:`1px solid ${C.border}`, background:C.inputBg, color:C.text,
-            padding:'9px 14px', borderRadius:10,
-            fontFamily:'Cormorant Garamond', fontSize:24, fontWeight:600, outline:'none',
-          }}
+          placeholder="Название песни…"
+          style={{ flex:1, border:'none', background:'transparent', color:S.text, fontFamily:'"Cormorant Garamond",serif', fontSize:22, fontWeight:500, outline:'none', minWidth:0 }}
         />
-        <button onClick={rawMode ? switchToSlides : switchToRaw}
-          style={{ ...btn(), fontSize:12, padding:'8px 14px' }}>
-          {rawMode ? '⊞ Слайды' : '≡ Текст'}
-        </button>
-        <button onClick={handleSave} disabled={saving} style={{ ...btn('primary') }}>
-          {saving ? 'Сохранение...' : isNew ? '+ Создать' : '✓ Сохранить'}
-        </button>
+        {!isNew && (
+          <div style={{ display:'flex', alignItems:'center', gap:6, padding:'5px 12px', borderRadius:100, background:S.bg, flexShrink:0 }}>
+            <div style={{ width:7, height:7, borderRadius:'50%', background: saveState==='saved'?S.saved:saveState==='error'?S.danger:S.accent, flexShrink:0 }}/>
+            <span style={{ fontSize:12, color:saveState==='error'?S.danger:S.textDim, whiteSpace:'nowrap' }}>
+              {saveState==='saving' ? 'Сохранение…' : saveState==='error' ? 'Не сохранено' : 'Сохранено'}
+            </span>
+          </div>
+        )}
+        {!isNew && (
+          <button onClick={() => setFontLocked(v=>!v)}
+            style={{ padding:'8px 14px', borderRadius:8, border:`1px solid ${S.borderMed}`, background:'transparent', color:S.textMid, fontFamily:'inherit', fontSize:13, cursor:'pointer', flexShrink:0 }}>
+            {fontLocked ? '🔒 Шрифт зафиксирован' : '🔓 Шрифт глобальный'}
+          </button>
+        )}
+        {!isNew && (
+          <button onClick={() => setDeleteConfirm(true)} title="Удалить песню"
+            style={{ padding:'8px 12px', borderRadius:8, border:`1px solid ${S.danger}55`, background:'transparent', color:S.danger, fontFamily:'inherit', fontSize:13, cursor:'pointer', flexShrink:0 }}>
+            🗑
+          </button>
+        )}
+        {isNew ? (
+          <button onClick={handleCreate} disabled={creating}
+            style={{ padding:'9px 18px', borderRadius:8, border:'none', background:S.accent, color:'#211a10', fontFamily:'inherit', fontSize:13, fontWeight:700, cursor:'pointer', flexShrink:0 }}>
+            {creating ? 'Создание…' : '+ Создать'}
+          </button>
+        ) : (
+          <button onClick={onClose}
+            style={{ padding:'9px 18px', borderRadius:8, border:'none', background:S.accent, color:'#211a10', fontFamily:'inherit', fontSize:13, fontWeight:700, cursor:'pointer', flexShrink:0 }}>
+            ▶ Показать
+          </button>
+        )}
       </div>
 
-      {error && (
-        <div style={{ padding:'10px 24px', background:`${C.danger}18`, color:C.danger, fontSize:13, borderBottom:`1px solid ${C.danger}30`, flexShrink:0 }}>
-          Ошибка: {error}
+      {saveState==='error' && saveError && (
+        <div style={{ padding:'7px 24px', background:`${S.danger}20`, color:S.danger, fontSize:12, borderBottom:`1px solid ${S.danger}30`, flexShrink:0 }}>
+          Ошибка: {saveError}
         </div>
       )}
 
-      {/* Hint */}
-      {!rawMode && (
-        <div style={{ padding:'10px 24px 0', fontSize:11, color:C.textSubtle, flexShrink:0 }}>
-          Слайды разделяются пустой строкой. Строки начинающиеся с «Припев:» или «Хор:» маркируются как припев.
-        </div>
-      )}
+      {/* Stage */}
+      <div style={{ flex:1, display:'grid', gridTemplateColumns:'1.4fr 1fr', gap:24, padding:'24px 32px 16px', minHeight:0, overflow:'hidden' }}>
+        <ProjectorPreview text={active?.text||''} slideNum={realActiveIdx+1} total={slides.length} fontStack={editorFontStack} bgCss={editorBgCss} screenFontSize={editorFontSize} />
 
-      {/* Body */}
-      <div style={{ flex:1, overflow:'auto', padding:'16px 24px 32px' }}>
-        {rawMode ? (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            <div style={{ fontSize:10, fontWeight:700, color:C.textSubtle, letterSpacing:1 }}>
-              ПОЛНЫЙ ТЕКСТ · СЛАЙДЫ РАЗДЕЛЯЮТСЯ ПУСТОЙ СТРОКОЙ
-            </div>
-            <textarea
-              value={rawText} onChange={e => setRawText(e.target.value)}
-              style={{
-                width:'100%', minHeight:'65vh', padding:'16px',
-                borderRadius:12, border:`1px solid ${C.border}`,
-                background:C.inputBg, color:C.text,
-                fontFamily:'Manrope', fontSize:15, lineHeight:1.65,
-                resize:'vertical', outline:'none', boxSizing:'border-box',
-              }}
-            />
+        {/* Slide editor */}
+        <div style={{ display:'flex', flexDirection:'column', background:S.elevated, borderRadius:10, border:`1px solid ${S.border}`, overflow:'hidden', minHeight:0 }}>
+          <div style={{ padding:'10px 14px', borderBottom:`1px solid ${S.border}`, display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
+            <span style={{ fontSize:11, fontWeight:600, color:S.textDim, letterSpacing:'0.16em', textTransform:'uppercase', flex:1 }}>
+              Слайд {realActiveIdx+1}
+            </span>
+            <button onClick={()=>moveSlide(realActiveIdx,-1)} disabled={realActiveIdx===0} title="Вверх" style={iconBtn(realActiveIdx===0,false)}>↑</button>
+            <button onClick={()=>moveSlide(realActiveIdx,+1)} disabled={realActiveIdx===slides.length-1} title="Вниз" style={iconBtn(realActiveIdx===slides.length-1,false)}>↓</button>
+            <button onClick={()=>duplicateSlide(realActiveIdx)} title="Дублировать" style={iconBtn(false,false)}>⎘</button>
+            <button onClick={()=>deleteSlide(realActiveIdx)} disabled={slides.length<=1} title="Удалить слайд" style={iconBtn(slides.length<=1,true)}>✕</button>
           </div>
-        ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            {slides.map((slide, idx) => {
-              const isChorus = /^(припев|хор|chorus|ref\.?)\s*:?/i.test(slide);
-              return (
-                <div key={idx} style={{
-                  borderRadius:12, border:`1px solid ${isChorus ? C.accent : C.border}`,
-                  background:C.panelBg, overflow:'hidden',
-                }}>
-                  <div style={{
-                    padding:'8px 12px', borderBottom:`1px solid ${C.borderSoft}`,
-                    display:'flex', alignItems:'center', gap:8,
-                    background: isChorus ? `${C.accent}12` : 'transparent',
-                  }}>
-                    <span style={{
-                      fontSize:9, fontWeight:700, letterSpacing:1.5,
-                      color: isChorus ? C.accent : C.textMute,
-                      textTransform:'uppercase', minWidth:64,
-                    }}>
-                      {isChorus ? '✦ Припев' : `Слайд ${idx+1}`}
-                    </span>
-                    <div style={{ flex:1 }}/>
-                    <button onClick={() => moveSlide(idx,-1)} disabled={idx===0}
-                      style={{ ...btn('icon'), opacity: idx===0 ? 0.35 : 1, fontSize:14 }}>↑</button>
-                    <button onClick={() => moveSlide(idx,+1)} disabled={idx===slides.length-1}
-                      style={{ ...btn('icon'), opacity: idx===slides.length-1 ? 0.35 : 1, fontSize:14 }}>↓</button>
-                    <button onClick={() => deleteSlide(idx)}
-                      style={{ ...btn('danger'), padding:'5px 10px', fontSize:15 }}>×</button>
-                  </div>
-                  <textarea
-                    value={slide} onChange={e => updateSlide(idx, e.target.value)}
-                    placeholder={isChorus ? 'Текст припева...' : 'Текст слайда / куплета...'}
-                    style={{
-                      width:'100%', minHeight:110, padding:'12px 14px',
-                      border:'none', background:'transparent', color:C.text,
-                      fontFamily:'Manrope', fontSize:14, lineHeight:1.65,
-                      resize:'vertical', outline:'none', boxSizing:'border-box',
-                    }}
-                  />
+          <textarea
+            ref={textareaRef}
+            value={active?.text||''}
+            onChange={e => updateSlide(realActiveIdx, e.target.value)}
+            placeholder="Текст слайда…"
+            style={{ flex:1, resize:'none', border:'none', background:'transparent', color:S.text, padding:'16px 18px', fontFamily:'"Lora",serif', fontSize:16, lineHeight:1.65, outline:'none', width:'100%', boxSizing:'border-box' }}
+          />
+          <div style={{ padding:'8px 14px 10px', display:'flex', gap:16, flexShrink:0, borderTop:`1px solid ${S.border}` }}>
+            {[['⌘↵','новый слайд'],['⌘↑↓','переместить'],['←→','сменить']].map(([k,v]) => (
+              <span key={k} style={{ fontSize:11, color:S.textDim, display:'flex', alignItems:'center', gap:4 }}>
+                <code style={{ fontFamily:'monospace', fontSize:10, background:'rgba(245,239,226,0.07)', padding:'1px 5px', borderRadius:3, border:`1px solid rgba(245,239,226,0.12)`, color:S.textMid }}>{k}</code>
+                {v}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Filmstrip */}
+      <div style={{ background:S.elevated, borderTop:`1px solid ${S.border}`, padding:'12px 24px 16px', flexShrink:0 }}>
+        <div style={{ display:'flex', alignItems:'center', marginBottom:10 }}>
+          <span style={{ fontSize:10, fontWeight:600, letterSpacing:'0.16em', textTransform:'uppercase', color:S.textDim, flex:1 }}>
+            Лента слайдов · перетаскивай для перестановки
+          </span>
+          <button onClick={() => addSlide(realActiveIdx)}
+            style={{ padding:'5px 12px', borderRadius:6, border:`1px solid ${S.borderMed}`, background:'transparent', color:S.textMid, fontFamily:'inherit', fontSize:12, cursor:'pointer', marginRight:8 }}>
+            + Вставить
+          </button>
+          <button onClick={addSlideAtEnd}
+            style={{ padding:'5px 12px', borderRadius:6, border:`1px solid ${S.borderMed}`, background:'transparent', color:S.textMid, fontFamily:'inherit', fontSize:12, cursor:'pointer' }}>
+            + В конец
+          </button>
+        </div>
+        <div ref={filmstripRef} style={{ display:'flex', gap:10, overflowX:'auto', paddingBottom:4 }}>
+          {slides.map((slide, idx) => (
+            <React.Fragment key={slide.id}>
+              {dropMarker===idx && dragIdx!==null && dragIdx!==idx && (
+                <div style={{ width:3, borderRadius:2, background:S.accent, flexShrink:0, alignSelf:'stretch', minHeight:60, boxShadow:`0 0 0 3px rgba(212,168,122,0.18)` }}/>
+              )}
+              <div
+                draggable
+                onDragStart={() => onDragStart(idx)}
+                onDragOver={e => onDragOver(e, idx)}
+                onDrop={e => onDrop(e, idx)}
+                onDragEnd={onDragEnd}
+                onClick={() => setActiveIdx(idx)}
+                style={{
+                  position:'relative', flex:'0 0 auto', width:140, aspectRatio:'16/9', borderRadius:6,
+                  overflow:'hidden', background:S.projector, cursor:'pointer',
+                  border:`2px solid ${idx===realActiveIdx ? S.accent : 'rgba(245,239,226,0.08)'}`,
+                  boxShadow: idx===realActiveIdx ? '0 4px 16px rgba(212,168,122,0.25)' : 'none',
+                  opacity: dragIdx===idx ? 0.4 : 1,
+                  transition:'border-color 0.15s, box-shadow 0.15s',
+                }}
+              >
+                <div style={{ position:'absolute', top:4, left:4, background:'rgba(0,0,0,0.55)', borderRadius:3, padding:'1px 5px', fontSize:9, fontWeight:700, color:'rgba(245,239,226,0.7)', fontFamily:'monospace', zIndex:1 }}>
+                  {String(idx+1).padStart(2,'0')}
                 </div>
-              );
-            })}
-            <button onClick={addSlide} style={{
-              padding:'12px', borderRadius:12,
-              border:`2px dashed ${C.border}`, background:'transparent',
-              color:C.textMute, fontFamily:'Manrope', fontSize:13, fontWeight:600,
-              cursor:'pointer', width:'100%',
-            }}>+ Добавить слайд</button>
+                <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', padding:'4px 8px' }}>
+                  <div style={{ fontFamily:'"Cormorant Garamond",serif', fontSize:9, lineHeight:1.3, color:S.text, textAlign:'center', overflow:'hidden', maxHeight:'100%', wordBreak:'break-word' }}>
+                    {slide.text.split('\n').slice(0,3).join('\n')}
+                  </div>
+                </div>
+              </div>
+            </React.Fragment>
+          ))}
+          {dropMarker===slides.length && dragIdx!==null && (
+            <div style={{ width:3, borderRadius:2, background:S.accent, flexShrink:0, alignSelf:'stretch', minHeight:60 }}/>
+          )}
+          <div
+            onDragOver={e => onDragOver(e, slides.length)}
+            onDrop={e => onDrop(e, slides.length)}
+            onClick={addSlideAtEnd}
+            style={{ flex:'0 0 auto', width:140, aspectRatio:'16/9', borderRadius:6, border:`1px dashed rgba(245,239,226,0.22)`, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'rgba(245,239,226,0.38)', fontSize:11 }}>
+            + Новый
+          </div>
+        </div>
+
+        {!isNew && (
+          <div style={{ borderTop:`1px solid ${S.border}`, marginTop:12, paddingTop:12, display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:'0.12em', color:'rgba(245,239,226,0.45)', whiteSpace:'nowrap' }}>ШРИФТ ПЕСНИ</div>
+            <div style={{ display:'flex', gap:6 }}>
+              {FONTS_SCREEN.map(f => (
+                <div key={f.id} onClick={() => handleEditorFontId(f.id)} style={{
+                  padding:'5px 12px', borderRadius:6, cursor:'pointer', fontSize:12, fontWeight:600,
+                  fontFamily: f.stack,
+                  border:`1px solid ${editorFontId===f.id ? S.accent : S.borderMed}`,
+                  background: editorFontId===f.id ? 'rgba(212,168,122,0.12)' : 'transparent',
+                  color: editorFontId===f.id ? S.accent : S.textMid,
+                }}>{f.label}</div>
+              ))}
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:8, flex:1, minWidth:180 }}>
+              <input type="range" min="32" max="140" value={editorFontSize}
+                onChange={e => handleEditorFontSize(+e.target.value)}
+                style={{ flex:1, accentColor:S.accent }}/>
+              <div style={{ fontSize:12, fontWeight:700, color:S.accent, minWidth:40, textAlign:'right' }}>{editorFontSize}pt</div>
+            </div>
+            <div style={{ display:'flex', gap:5 }}>
+              {[{l:'S',v:48},{l:'M',v:64},{l:'L',v:80},{l:'XL',v:104}].map(s => (
+                <div key={s.l} onClick={() => handleEditorFontSize(s.v)} style={{
+                  padding:'4px 10px', borderRadius:6, fontSize:11, fontWeight:600, cursor:'pointer',
+                  border:`1px solid ${editorFontSize===s.v ? S.accent : S.borderMed}`,
+                  background: editorFontSize===s.v ? 'rgba(212,168,122,0.12)' : 'transparent',
+                  color: editorFontSize===s.v ? S.accent : S.textMid,
+                }}>{s.l}</div>
+              ))}
+            </div>
           </div>
         )}
       </div>

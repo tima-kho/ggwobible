@@ -1,0 +1,26 @@
+{
+  "song-0010": {
+    "fontId": "mono",
+    "fontSize": 64
+  },
+  "song-custom-0003": {
+    "fontId": "mono",
+    "fontSize": 94
+  },
+  "song-custom-0002": {
+    "fontId": "cormorant",
+    "fontSize": 117
+  },
+  "song-custom-0001": {
+    "fontId": "manrope",
+    "fontSize": 104
+  },
+  "song-custom-0005": {
+    "fontId": "mono",
+    "fontSize": 81
+  },
+  "song-custom-0004": {
+    "fontId": "cormorant",
+    "fontSize": 48
+  }
+}
