@@ -823,8 +823,20 @@ function App() {
     } catch {}
     const blocks = parseSongBlocks(savedSong.lyrics || '');
     const entry = { id: savedSong.id, title: savedSong.title, firstLine: savedSong.firstLine, lyrics: savedSong.lyrics, blocks };
-    setSongCache(prev => ({ ...prev, [savedSong.id]: entry }));
-    if (activeSongId === savedSong.id) {
+    setSongCache(prev => {
+      const next = { ...prev };
+      if (savedSong.replacedId) delete next[savedSong.replacedId];
+      next[savedSong.id] = entry;
+      return next;
+    });
+    if (savedSong.replacedId) {
+      setEditingSong(prev => prev ? { ...prev, id: savedSong.id } : prev);
+      if (activeSongId === savedSong.replacedId) {
+        setActiveSongId(savedSong.id);
+        setActiveSongData(entry);
+        setActiveSongBlocks(blocks);
+      }
+    } else if (activeSongId === savedSong.id) {
       setActiveSongData(entry);
       setActiveSongBlocks(blocks);
     }
@@ -2108,6 +2120,9 @@ function SongEditorModal({ C, dark, song, onSave, onUpdate, onDelete, onClose, s
   const textareaRef = useRef(null);
   const filmstripRef = useRef(null);
   const saveTimer = useRef(null);
+  const isFirstRender = useRef(true);
+  const songIdRef = useRef(song.id);
+  useEffect(() => { songIdRef.current = song.id; });
 
   useEffect(() => { textareaRef.current?.focus(); }, [activeIdx]);
 
@@ -2120,6 +2135,7 @@ function SongEditorModal({ C, dark, song, onSave, onUpdate, onDelete, onClose, s
 
   useEffect(() => {
     if (isNew) return;
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
     setSaveState('saving');
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(performSave, 700);
@@ -2129,7 +2145,7 @@ function SongEditorModal({ C, dark, song, onSave, onUpdate, onDelete, onClose, s
   async function performSave() {
     const lyrics = slides.map(s => s.text).filter(t => t.trim()).join('\n\n');
     try {
-      const resp = await fetch(`/api/songs/${song.id}`, {
+      const resp = await fetch(`/api/songs/${songIdRef.current}`, {
         method:'PUT', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ title, lyrics }),
       });
